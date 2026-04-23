@@ -20,6 +20,5 @@ pnpm add -D typescript @types/node eslint vitest
 
 ```bash
 cp .env.example .env
-docker network create internal
 docker compose --env-file .env -f docker/docker-compose.service.yml up -d
 ```

@@ -1,0 +1,36 @@
+name: 'fireblocks-sandbox-service'
+
+services:
+  # Development environment PostgreSQL database
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    volumes:
+      - './data/postgresql/data:/var/lib/postgresql/data'
+    networks:
+      - internal
+
+  # Redis development environment
+  redis:
+    image: redis:${REDIS_VERSION}
+    restart: always
+    ports:
+      - '${REDIS_PORT}:6379'
+    volumes:
+      - './data/redis/redis.conf:/etc/redis/redis.conf'
+      - './data/redis/data:/data'
+      - './data/redis/logs:/logs'
+    command: [redis-server, /etc/redis/redis.conf]
+    networks:
+      - internal
+
+networks:
+  internal:
+    name: fireblocks-sandbox-internal
+    driver: bridge
