@@ -1,0 +1,49 @@
+shellEmulator: true
+
+packages:
+  - servers/**/*
+  - service/**/*
+
+patchedDependencies:
+  nestjs-redlock-universal: patches/nestjs-redlock-universal.patch
+
+catalogs:
+  cli:
+    '@antfu/eslint-config': ^6.7.3
+    '@antfu/ni': ^23.3.1
+    '@antfu/utils': ^8.1.1
+    '@hairy/lnv': ^9.1.0
+    '@hairy/oxrun': ^0.2.8
+    '@oxc-node/core': ^0.0.35
+    eslint: ^9.39.2
+    lint-staged: ^16.2.7
+    simple-git-hooks: ^2.13.1
+    tsdown: ^0.21.1
+    tsx: ^4.21.0
+    typescript: ^5.9.3
+  inlined:
+    '@hairy/utils': ^1.51.0
+  nestjs:
+    '@nestjs/bull': ^11.0.1
+    '@nestjs/common': ^11.0.11
+    '@nestjs/core': ^11.0.11
+    '@nestjs/microservices': ^11.0.11
+    '@nestjs/platform-express': ^11.0.11
+    '@nestjs/schedule': ^5.0.1
+    '@nestjs/swagger': ^11.0.6
+    nestjs-extras-w: ^0.3.3
+    nestjs-mickit: ^0.1.1
+    nestjs-redlock-universal: ^0.3.0
+  sql:
+    '@prisma/adapter-pg': ^7.4.2
+    '@prisma/client': ^7.2.0
+    prisma: ^7.3.0
+  testing:
+    vitest: ^4.0.15
+  types:
+    '@types/node': ^22.19.3
+  utils:
+    bull: ^4.15.0
+    ioredis: ^5.9.1
+    redlock-universal: ^0.8.4
+    reflect-metadata: ^0.2.2

@@ -4,7 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "pnpm -r --parallel run dev",
+    "start": "pnpm -r --parallel run start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "simple-git-hooks"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +31,8 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "eslint": "^10.2.1",
+    "simple-git-hooks": "catalog:cli",
+    "tsx": "catalog:cli",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   }

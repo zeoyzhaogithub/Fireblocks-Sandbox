@@ -1,0 +1,9 @@
+{
+  "name": "@service/redis",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@hairy/utils": "catalog:inlined",
+    "ioredis": "catalog:utils",
+    "nestjs-redlock-universal": "catalog:nestjs"
+  }
+}

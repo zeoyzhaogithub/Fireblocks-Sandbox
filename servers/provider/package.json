@@ -1,0 +1,22 @@
+{
+  "name": "@server/provider",
+  "version": "1.0.0",
+  "main": "main.ts",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@service/fireblocks": "workspace:^"
+  },
+  "microservice": {
+    "transport": "REDIS",
+    "options": {
+      "host": "$REDIS_HOST",
+      "port": "$REDIS_PORT"
+    }
+  },
+  "service": {
+    "port": 4000
+  }
+}

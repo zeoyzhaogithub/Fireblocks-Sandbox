@@ -1,0 +1,11 @@
+{
+  "name": "@service/fireblocks",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test:run": "tsx test/run.ts"
+  },
+  "dependencies": {
+    "@fireblocks/ts-sdk": "^16.0.0"
+  }
+}

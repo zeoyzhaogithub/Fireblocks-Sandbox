@@ -1,0 +1,16 @@
+{
+  "name": "@server/gateway",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@nestjs/bull": "catalog:nestjs",
+    "@server/provider": "workspace:^",
+    "@service/redis": "workspace:^",
+    "bull": "catalog:utils"
+  },
+  "service": {
+    "port": 3000
+  }
+}
