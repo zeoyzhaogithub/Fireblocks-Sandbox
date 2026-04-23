@@ -137,3 +137,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+.env
+fireblocks_secret.key
+generated
+
+# Docker runtime data (local only)
+docker/data/

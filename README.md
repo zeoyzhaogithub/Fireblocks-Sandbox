@@ -15,3 +15,11 @@ mkdir -p docker
 pnpm add @nestjs/common @nestjs/core @nestjs/platform-express @nestjs/microservices @nestjs/swagger nestjs-extras-w reflect-metadata rxjs
 pnpm add -D typescript @types/node eslint vitest
 ```
+
+### 6.4 初始化 Docker 依赖服务
+
+```bash
+cp .env.example .env
+docker network create internal
+docker compose --env-file .env -f docker/docker-compose.service.yml up -d
+```
