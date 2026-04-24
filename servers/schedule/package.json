@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "main.ts",
   "scripts": {
+    "predev": "node ../../scripts/kill-ports.mjs 5100",
     "dev": "tsx watch src/main.ts",
+    "prestart": "node ../../scripts/kill-ports.mjs 5100",
     "start": "tsx src/main.ts"
   },
   "dependencies": {
@@ -13,6 +15,6 @@
     "nestjs-redlock-universal": "catalog:nestjs"
   },
   "service": {
-    "port": 5000
+    "port": 5100
   }
 }

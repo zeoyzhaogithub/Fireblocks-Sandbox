@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "main.ts",
   "scripts": {
+    "predev": "node ../../scripts/kill-ports.mjs 4100",
     "dev": "tsx watch src/main.ts",
+    "prestart": "node ../../scripts/kill-ports.mjs 4100",
     "start": "tsx src/main.ts"
   },
   "dependencies": {
@@ -17,6 +19,6 @@
     }
   },
   "service": {
-    "port": 4000
+    "port": 4100
   }
 }

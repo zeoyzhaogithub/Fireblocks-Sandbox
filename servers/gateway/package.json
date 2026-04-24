@@ -1,7 +1,9 @@
 {
   "name": "@server/gateway",
   "scripts": {
+    "predev": "node ../../scripts/kill-ports.mjs 3100",
     "dev": "tsx watch src/main.ts",
+    "prestart": "node ../../scripts/kill-ports.mjs 3100",
     "start": "tsx src/main.ts"
   },
   "dependencies": {
@@ -11,6 +13,6 @@
     "bull": "catalog:utils"
   },
   "service": {
-    "port": 3000
+    "port": 3100
   }
 }

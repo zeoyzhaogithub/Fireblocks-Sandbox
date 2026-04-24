@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "pnpm -r --parallel run dev",
-    "start": "pnpm -r --parallel run start",
+    "predev": "node scripts/kill-ports.mjs",
+    "dev": "dotenv -e .env -- pnpm -r --parallel run dev",
+    "prestart": "node scripts/kill-ports.mjs",
+    "start": "dotenv -e .env -- pnpm -r --parallel run start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^10.2.1",
     "simple-git-hooks": "catalog:cli",
     "tsx": "catalog:cli",

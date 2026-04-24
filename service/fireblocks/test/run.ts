@@ -5,10 +5,6 @@ async function main() {
 
   try {
     const client = getFireblocksClient();
-    const supportedAssets = await client.blockchainsAssets.getSupportedAssets();
-    console.log("[fireblocks:test] SDK init and auth succeeded.");
-    console.log("[fireblocks:test] getSupportedAssets count:", supportedAssets.data?.length ?? 0);
-
     const assetsPage = await client.blockchainsAssets.listAssets({
       pageSize: 100,
     });
