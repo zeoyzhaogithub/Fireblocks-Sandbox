@@ -5,6 +5,7 @@
         "experimentalDecorators": true,
         "module": "esnext",
         "moduleResolution": "Bundler",
+        "types": ["node"],
         "resolveJsonModule": true,
         "strict": true,
         "strictNullChecks": true,

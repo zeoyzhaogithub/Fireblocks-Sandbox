@@ -3,9 +3,12 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "test:run": "tsx test/run.ts"
+    "test:run": "dotenv -e ../../.env -- tsx test/run.ts"
   },
   "dependencies": {
     "@fireblocks/ts-sdk": "^16.0.0"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
   }
 }
