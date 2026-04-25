@@ -1,0 +1,36 @@
+{
+  "assets": [
+    {
+      "fireblocksAssetLegacyId": "TRX_USDC_SKL5",
+      "fireblocksBlockchainId": "85ff16cb-74a3-4732-b35a-1640d2f2394c",
+      "blockchainKey": "TRON",
+      "label": "USDC (TRON)",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "fireblocksAssetLegacyId": "TON_TEST",
+      "fireblocksBlockchainId": "cdb27964-118a-4eb4-9cb8-72ccd8e2f47d",
+      "blockchainKey": "TON",
+      "label": "TON (native, test)",
+      "enabled": true,
+      "sortOrder": 20
+    },
+    {
+      "fireblocksAssetLegacyId": "PAXG_T",
+      "fireblocksBlockchainId": "82d726bb-4012-46df-bc56-77e942640705",
+      "blockchainKey": "ETH",
+      "label": "Paxos Gold (Ropsten, deprecated)",
+      "enabled": false,
+      "sortOrder": 30
+    },
+    {
+      "fireblocksAssetLegacyId": "USG_T",
+      "fireblocksBlockchainId": "82d726bb-4012-46df-bc56-77e942640705",
+      "blockchainKey": "ETH",
+      "label": "US Gold (Ropsten, deprecated)",
+      "enabled": false,
+      "sortOrder": 40
+    }
+  ]
+}
