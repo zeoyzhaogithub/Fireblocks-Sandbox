@@ -1,0 +1,7 @@
+{
+    "prisma": {
+    "namingConvention": "camelCase",
+    "preferJsonFields": false,
+    "alwaysUseTimestamps": true
+   }
+}

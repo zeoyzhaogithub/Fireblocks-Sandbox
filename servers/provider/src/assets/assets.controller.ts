@@ -1,5 +1,5 @@
-import { Controller, Get, Inject, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Controller, Get, Inject } from "@nestjs/common";
+import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { AssetsService } from "./assets.service";
 
 @ApiTags("fireblocks-assets")
@@ -9,16 +9,14 @@ export class AssetsController {
 
   @Get("assets")
   @ApiOperation({
-    summary: "List supported Fireblocks assets (paginated)",
-    description:
-      "Returns a paginated list of assets available in the current Fireblocks workspace. Use pageSize and pageCursor for cursor-based pagination.",
+    summary: "List all supported Fireblocks assets",
+    description: "Returns all assets available in the current Fireblocks workspace by internally iterating all pages.",
   })
-  @ApiQuery({ name: "pageSize", required: false, description: "Page size (1-500)" })
-  @ApiQuery({ name: "pageCursor", required: false, description: "Cursor for next page" })
   @ApiOkResponse({
-    description: "Paginated assets list",
+    description: "All assets list",
     schema: {
       example: {
+        total: 2,
         data: [
           {
             id: "015f1506-6d73-42b4-b41c-735b1b0bf828",
@@ -58,11 +56,10 @@ export class AssetsController {
             decimals: 2,
           },
         ],
-        next: "R0xPQkFMOjdlZjNjYzViLTQ0NWUtNDNmYy04MmM3LTEzOWE1OTZkMDIxOQ==",
       },
     },
   })
-  async listAssets(@Query("pageSize") pageSize?: string, @Query("pageCursor") pageCursor?: string) {
-    return this.assetsService.listAssets(pageSize, pageCursor);
+  async listAssets() {
+    return this.assetsService.listAssets();
   }
 }

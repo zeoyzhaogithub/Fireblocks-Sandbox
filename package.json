@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "exports": {
+    ".": "./index.ts",
+    "./client": "./prisma/generated/client.ts",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "predev": "node scripts/kill-ports.mjs",
     "dev": "dotenv -e .env -- pnpm -r --parallel run dev",
@@ -14,7 +19,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "prisma:validate": "lnv prisma:validate",
+    "prisma:generate": "lnv prisma:generate && pnpm sync && tsdown",
+    "prisma:migrate:dev": "lnv prisma:migrate:dev",
+    "prisma:format": "lnv prisma:format",
+    "prisma:studio": "lnv prisma:studio",
+    "prisma:db:push": "lnv prisma:db:push",
+    "prisma:db:pull": "lnv prisma:db:pull"
   },
   "keywords": [],
   "author": "",
@@ -38,5 +50,12 @@
     "tsx": "catalog:cli",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./client": "./dist/client.mjs",
+      "./package.json": "./package.json"
+    }
   }
 }

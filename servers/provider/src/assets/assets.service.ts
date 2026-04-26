@@ -6,24 +6,30 @@ import { AssetsRepository } from "./assets.repository";
 export class AssetsService {
   constructor(@Inject(AssetsRepository) private readonly assetsRepository: AssetsRepository) {}
 
-  async listAssets(pageSize?: string, pageCursor?: string) {
-    const parsedPageSize = Number(pageSize);
-    const safePageSize = Number.isFinite(parsedPageSize)
-      ? Math.min(Math.max(Math.trunc(parsedPageSize), 1), 500)
-      : 100;
+  async listAssets() {
+    const pageSize = 500;
+    let pageCursor: string | undefined;
+    const allData: unknown[] = [];
 
-    const data = await listAssets({
-      pageSize: safePageSize,
-      pageCursor: pageCursor?.trim() || undefined,
-    });
+    do {
+      const page = await listAssets({
+        pageSize,
+        pageCursor,
+      });
+      allData.push(...(page.data ?? []));
+      pageCursor = page.next ?? undefined;
+    } while (pageCursor);
 
     await this.assetsRepository.saveListSnapshot({
-      pageSize: safePageSize,
-      hasNextPage: Boolean(data.next),
-      count: data.data?.length ?? 0,
+      pageSize,
+      hasNextPage: false,
+      count: allData.length,
       fetchedAt: Date.now(),
     });
 
-    return data;
+    return {
+      data: allData,
+      total: allData.length,
+    };
   }
 }

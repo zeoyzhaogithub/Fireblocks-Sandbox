@@ -1,11 +1,7 @@
-shellEmulator: true
 
 packages:
   - servers/**/*
   - service/**/*
-
-patchedDependencies:
-  nestjs-redlock-universal: patches/nestjs-redlock-universal.patch
 
 catalogs:
   cli:
@@ -37,7 +33,7 @@ catalogs:
   sql:
     '@prisma/adapter-pg': ^7.4.2
     '@prisma/client': ^7.2.0
-    prisma: ^7.3.0
+    prisma: ^7.8.0
   testing:
     vitest: ^4.0.15
   types:
@@ -47,3 +43,7 @@ catalogs:
     ioredis: ^5.9.1
     redlock-universal: ^0.8.4
     reflect-metadata: ^0.2.2
+
+patchedDependencies:
+  nestjs-redlock-universal: patches/nestjs-redlock-universal.patch
+shellEmulator: true

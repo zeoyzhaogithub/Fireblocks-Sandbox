@@ -1,3 +1,124 @@
 generator client {
-    
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  BASIC
+  CERTIFIED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuthProvider {
+  EMAIL
+  AUTH0
+  GOOGLE
+  CUSTOM
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  email             String?                 @unique
+  emailVerifiedAt   DateTime?               @map("email_verified_at")
+  username          String?                 @unique
+  displayName       String?                 @map("display_name")
+  avatar            String?
+  role              UserRole                @default(BASIC)
+  status            UserStatus              @default(PENDING)
+  lastLoginAt       DateTime?               @map("last_login_at")
+  lastLoginArea     String?                 @map("last_login_area")
+  loginCount        Int                     @default(0) @map("login_count")
+  inviteCode        String?                 @unique @map("invite_code")
+  invitedById       String?                 @map("invited_by_id")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  invitedBy         User?                   @relation("UserInvites", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedUsers      User[]                  @relation("UserInvites")
+  authProviders     UserAuthProvider[]
+  sessions          UserSession[]
+  fireblocksVault   UserFireblocksVault?
+  depositAddresses  FireblocksDepositAddress[]
+
+  @@index([emailVerifiedAt])
+  @@index([invitedById])
+  @@map("users")
+}
+
+model UserAuthProvider {
+  id              String       @id @default(cuid())
+  userId          String       @map("user_id")
+  provider        AuthProvider @default(EMAIL)
+  providerSubject String       @map("provider_subject")
+  linkedAccounts  Json?        @map("linked_accounts")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@map("user_auth_providers")
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  token        String    @unique
+  refreshToken String?   @map("refresh_token")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  expiresAt    DateTime  @map("expires_at")
+  lastUsedAt   DateTime  @default(now()) @map("last_used_at")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model UserFireblocksVault {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  vaultAccountId String   @unique @map("vault_account_id")
+  vaultName      String?  @map("vault_name")
+  customerRefId  String?  @map("customer_ref_id")
+  hiddenOnUi     Boolean  @default(true) @map("hidden_on_ui")
+  autoFuel       Boolean  @default(false) @map("auto_fuel")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_fireblocks_vaults")
+}
+
+model FireblocksDepositAddress {
+  id                       String   @id @default(cuid())
+  userId                   String   @map("user_id")
+  vaultAccountId           String   @map("vault_account_id")
+  fireblocksAssetLegacyId  String   @map("fireblocks_asset_legacy_id")
+  blockchainKey            String?  @map("blockchain_key")
+  address                  String
+  tag                      String?
+  legacyAddress            String?  @map("legacy_address")
+  walletStatus             String?  @map("wallet_status")
+  activationTxId           String?  @map("activation_tx_id")
+  addressRowId             String?  @map("address_row_id")
+  isPrimary                Boolean  @default(true) @map("is_primary")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fireblocksAssetLegacyId])
+  @@index([vaultAccountId])
+  @@index([address])
+  @@map("fireblocks_deposit_addresses")
 }
