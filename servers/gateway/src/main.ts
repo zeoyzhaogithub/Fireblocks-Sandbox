@@ -1,23 +1,15 @@
 import "reflect-metadata";
-import { Controller, Get, Module } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { RequestMethod } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-
-@Controller()
-class GatewayController {
-  @Get("health")
-  health() {
-    return { service: "gateway", status: "ok" };
-  }
-}
-
-@Module({
-  controllers: [GatewayController],
-})
-class GatewayModule {}
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(GatewayModule);
+  const app = await NestFactory.create(AppModule);
+  app.enableCors();
+  app.setGlobalPrefix("api/v1", {
+    exclude: [{ path: "health", method: RequestMethod.GET }],
+  });
 
   const swaggerEnabled = process.env.GATEWAY_SWAGGER_ENABLED !== "false";
   const swaggerPath = process.env.GATEWAY_SWAGGER_PATH ?? "docs";

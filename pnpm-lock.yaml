@@ -120,6 +120,9 @@ importers:
 
   servers/provider:
     dependencies:
+      '@service/database':
+        specifier: workspace:^
+        version: link:../../service/database
       '@service/fireblocks':
         specifier: workspace:^
         version: link:../../service/fireblocks
@@ -157,6 +160,12 @@ importers:
       tsx:
         specifier: catalog:cli
         version: 4.21.0
+
+  service/database/prisma/generated:
+    dependencies:
+      '@prisma/client-runtime-utils':
+        specifier: 7.8.0
+        version: 7.8.0
 
   service/fireblocks:
     dependencies:

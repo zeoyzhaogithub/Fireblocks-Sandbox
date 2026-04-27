@@ -2,7 +2,7 @@
   "name": "@service/database",
   "type": "module",
   "exports": {
-    ".": "./index.ts",
+    ".": "./src/index.ts",
     "./client": "./prisma/generated/client.js",
     "./package.json": "./package.json"
   },
