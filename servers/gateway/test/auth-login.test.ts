@@ -1,0 +1,66 @@
+import "reflect-metadata";
+import { RequestMethod } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { AppModule } from "../src/app.module";
+import { ProviderClient } from "../src/provider-client/provider.client";
+
+describe("Gateway auth login", () => {
+  const useRealProvider = process.env.REAL_PROVIDER_E2E === "true";
+  const testEmail = process.env.TEST_LOGIN_EMAIL ?? "demo@example.com";
+  const providerClientMock = {
+    login: vi.fn(),
+  };
+  let app: any;
+  let baseUrl = "";
+
+  beforeAll(async () => {
+    if (!useRealProvider) {
+      providerClientMock.login.mockResolvedValue({
+        user: { id: "u_1", email: testEmail, loginCount: 1 },
+        wallet: {
+          vaultAccountId: "123",
+          createdVault: true,
+          syncedAddresses: [],
+          email: testEmail,
+        },
+        message: "login success",
+      });
+    }
+
+    const builder = Test.createTestingModule({
+      imports: [AppModule],
+    });
+    if (!useRealProvider) {
+      builder.overrideProvider(ProviderClient).useValue(providerClientMock);
+    }
+    const moduleRef = await builder.compile();
+
+    app = moduleRef.createNestApplication();
+    app.setGlobalPrefix("api/v1", {
+      exclude: [{ path: "health", method: RequestMethod.GET }],
+    });
+    await app.init();
+    await app.listen(0);
+    const address = app.getHttpServer().address();
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("POST /api/v1/auth/login should proxy login request", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: testEmail }),
+    });
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.message).toBe("login success");
+    if (!useRealProvider) {
+      expect(providerClientMock.login).toHaveBeenCalledWith({ email: testEmail });
+    }
+  });
+});
