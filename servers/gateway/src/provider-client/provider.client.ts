@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { LoginResponseDto } from "../bff/auth/dto/login.response.dto";
 
 type QueryValue = string | number | boolean | undefined;
 type QueryParams = Record<string, QueryValue>;
@@ -64,6 +65,6 @@ export class ProviderClient {
   }
 
   login(input: { email: string }) {
-    return this.post<unknown>("/auth/login", input);
+    return this.post<LoginResponseDto>("/auth/login", input);
   }
 }
