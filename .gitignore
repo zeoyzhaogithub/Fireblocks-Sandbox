@@ -144,3 +144,6 @@ generated
 
 # Docker runtime data (local only)
 docker/data/
+
+# doc
+/doc/
