@@ -123,6 +123,8 @@ model User {
   withdrawal_orders  WithdrawalOrder[]
   /// 卡相关操作订单（反向关系），用于关联 caku 业务单与本地资金流水。
   card_operation_orders CardOperationOrder[]
+  /// 资金归集任务明细（反向关系），用于按用户维度查询归集执行情况。
+  sweep_items           SweepItem[]
 
   @@index([email_verified_at])
   @@index([invited_by_id])
@@ -402,3 +404,193 @@ model CardOperationOrder {
   @@index([operation_type, status])
   @@map("card_operation_orders")
 }
+
+enum SweepPlanStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SweepTriggerType {
+  MANUAL
+  SCHEDULED
+  THRESHOLD
+}
+
+enum SweepItemStatus {
+  PENDING
+  READY
+  SUBMITTED
+  CONFIRMING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum SweepTransferStatus {
+  PENDING
+  SUBMITTED
+  BROADCASTED
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+// enum SweepReconciliationStatus {
+//   PENDING
+//   RUNNING
+//   COMPLETED
+//   FAILED
+// }
+
+/// 资金归集计划（为什么归集、归集范围、策略）。
+model SweepPlan {
+  /// 归集计划主键。
+  id                           String                  @id @default(cuid())
+  /// 归集资产代码（如 USDT、USDC）。
+  asset_code                   String
+  /// 归集来源范围（如 ALL_USERS、RISK_GROUP_A）。
+  source_scope                 String
+  /// 归集目标金库账户 ID（主归集金库）。
+  destination_vault_account_id String
+  /// 计划状态。
+  status                       SweepPlanStatus         @default(PENDING)
+  /// 触发类型（手动/定时/阈值）。
+  trigger_type                 SweepTriggerType
+  /// 阈值触发金额（可选）。
+  threshold_amount             Decimal?                @db.Decimal(36, 18)
+  /// 最小保留金额（可选）。
+  min_reserve_amount           Decimal?                @db.Decimal(36, 18)
+  /// 幂等键（防重复创建同一计划）。
+  idempotency_key              String?                 @unique
+  /// 计划创建人（系统或管理员 ID，可选）。
+  created_by                   String?
+  /// 计划开始执行时间（可选）。
+  started_at                   DateTime?
+  /// 计划完成时间（可选）。
+  completed_at                 DateTime?
+  /// 计划失败原因（可选）。
+  fail_reason                  String?
+  /// 原始扩展载荷（可选）。
+  raw_payload                  Json?
+  /// 记录创建时间。
+  created_at                   DateTime                @default(now())
+  /// 记录更新时间。
+  updated_at                   DateTime                @updatedAt
+  /// 计划下的归集明细列表（反向关系）。
+  sweep_items                  SweepItem[]
+
+  @@index([asset_code, status])
+  @@index([trigger_type, status])
+  @@index([destination_vault_account_id])
+  @@map("sweep_plans")
+}
+
+/// 资金归集明细（每个来源地址/账户一条任务）。
+model SweepItem {
+  /// 归集明细主键。
+  id                    String              @id @default(cuid())
+  /// 所属归集计划 ID。
+  sweep_plan_id         String
+  /// 对应平台用户 ID。
+  user_id               String
+  /// 来源金库账户 ID。
+  from_vault_account_id String
+  /// 来源地址（可选，按地址归集场景使用）。
+  from_address          String?
+  /// 归集资产代码。
+  asset_code            String
+  /// 可归集余额快照。
+  available_amount      Decimal             @db.Decimal(36, 18)
+  /// 本次计划归集金额。
+  sweep_amount          Decimal             @db.Decimal(36, 18)
+  /// 明细状态。
+  status                SweepItemStatus     @default(PENDING)
+  /// 明细失败原因（可选）。
+  fail_reason           String?
+  /// 记录创建时间。
+  created_at            DateTime            @default(now())
+  /// 记录更新时间。
+  updated_at            DateTime            @updatedAt
+  /// 归属计划（外键关系）。
+  sweep_plan            SweepPlan           @relation(fields: [sweep_plan_id], references: [id], onDelete: Cascade)
+  /// 归属用户（外键关系）。
+  user                  User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  /// 明细对应的转账执行记录（反向关系）。
+  sweep_transfers       SweepTransfer[]
+
+  @@index([sweep_plan_id, status])
+  @@index([user_id, status])
+  @@index([from_vault_account_id, asset_code])
+  @@map("sweep_items")
+}
+
+/// 资金归集执行记录（对接 Fireblocks transaction）。
+model SweepTransfer {
+  /// 归集转账记录主键。
+  id             String              @id @default(cuid())
+  /// 关联归集明细 ID。
+  sweep_item_id  String
+  /// Fireblocks 交易 ID（可选，提交后写入）。
+  fireblocks_tx_id String?           @unique
+  /// 业务请求 ID（幂等控制）。
+  request_id     String              @unique
+  /// 链上交易哈希（可选）。
+  tx_hash        String?
+  /// 归集转账金额。
+  amount         Decimal             @db.Decimal(36, 18)
+  /// 手续费金额（可选）。
+  fee_amount     Decimal?            @db.Decimal(36, 18)
+  /// 执行状态。
+  status         SweepTransferStatus @default(PENDING)
+  /// 提交 Fireblocks 时间（可选）。
+  submitted_at   DateTime?
+  /// 链上确认时间（可选）。
+  confirmed_at   DateTime?
+  /// 执行失败原因（可选）。
+  fail_reason    String?
+  /// Fireblocks 原始返回载荷（可选）。
+  raw_payload    Json?
+  /// 记录创建时间。
+  created_at     DateTime            @default(now())
+  /// 记录更新时间。
+  updated_at     DateTime            @updatedAt
+  /// 对应归集明细（外键关系）。
+  sweep_item     SweepItem           @relation(fields: [sweep_item_id], references: [id], onDelete: Cascade)
+
+  @@index([sweep_item_id, status])
+  @@index([tx_hash])
+  @@map("sweep_transfers")
+}
+
+/// 资金归集对账结果（可选但建议）。
+// model SweepReconciliation {
+//   /// 对账记录主键。
+//   id             String                    @id @default(cuid())
+//   /// 业务对账日期。
+//   biz_date       DateTime
+//   /// 对账资产代码。
+//   asset_code     String
+//   /// 对账任务状态。
+//   status         SweepReconciliationStatus @default(PENDING)
+//   /// 差异条数。
+//   mismatch_count Int                       @default(0)
+//   /// 对账开始时间（可选）。
+//   started_at     DateTime?
+//   /// 对账完成时间（可选）。
+//   completed_at   DateTime?
+//   /// 对账失败原因（可选）。
+//   fail_reason    String?
+//   /// 对账报告明细（可选）。
+//   report_payload Json?
+//   /// 记录创建时间。
+//   created_at     DateTime                  @default(now())
+//   /// 记录更新时间。
+//   updated_at     DateTime                  @updatedAt
+
+//   @@unique([biz_date, asset_code])
+//   @@index([status, created_at])
+//   @@map("sweep_reconciliation")
+// }
