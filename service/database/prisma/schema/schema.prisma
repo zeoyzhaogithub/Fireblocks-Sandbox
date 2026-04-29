@@ -1,28 +1,14 @@
-enum UserRole {
-  BASIC
-  CERTIFIED
-}
-
 enum UserStatus {
   PENDING
   ACTIVE
   SUSPENDED
 }
 
-enum AuthProvider {
-  EMAIL
-  AUTH0
-  GOOGLE
-  CUSTOM
+enum UserRole {
+  BASIC
+  CERTIFIED
 }
 
-enum KycStatus {
-  INITIAL // Initial state
-  PENDING // Under review
-  REJECTED // Rejected (RED with FINAL)
-  COMPLETED // Successfully verified (GREEN)
-  RETRY // Can RETRY
-}
 
 enum WalletAccountStatus {
   PENDING
@@ -30,6 +16,7 @@ enum WalletAccountStatus {
   FROZEN
   CLOSED
 }
+
 
 enum LedgerEntryType {
   DEPOSIT
@@ -40,11 +27,20 @@ enum LedgerEntryType {
   FEE
 }
 
+
 enum LedgerEntryStatus {
   PENDING
   POSTED
   FAILED
   REVERSED
+}
+
+
+enum AuthProvider {
+  EMAIL
+  AUTH0
+  GOOGLE
+  CUSTOM
 }
 
 enum DepositOrderStatus {
@@ -67,11 +63,13 @@ enum WithdrawalOrderStatus {
   CANCELLED
 }
 
+// 卡操作类型
 enum CardOperationType {
   CARD_ISSUANCE_FEE
   CARD_TOPUP
 }
 
+// 卡操作订单状态
 enum CardOperationOrderStatus {
   PENDING
   PROCESSING
@@ -80,78 +78,87 @@ enum CardOperationOrderStatus {
   CANCELLED
 }
 
+enum KycStatus {
+  INITIAL // Initial state
+  PENDING // Under review
+  REJECTED // Rejected (RED with FINAL)
+  COMPLETED // Successfully verified (GREEN)
+  RETRY // Can RETRY
+}
+
 model User {
   id                String                  @id @default(cuid())
   email             String?                 @unique
-  emailVerifiedAt   DateTime?               @map("email_verified_at")
+  email_verified_at DateTime?
   username          String?                 @unique
-  displayName       String?                 @map("display_name")
+  display_name String?
   avatar            String?
   role              UserRole                @default(BASIC)
   status            UserStatus              @default(PENDING)
   
-  lastLoginAt       DateTime?               @map("last_login_at")
-  lastLoginArea     String?                 @map("last_login_area")
-  loginCount        Int                     @default(0) @map("login_count")
+  last_login_at DateTime?
+  last_login_area String?
+  login_count Int  @default(0)
   
-  inviteCode        String?                 @unique @map("invite_code")
-  invitedById       String?                 @map("invited_by_id")
-  createdAt         DateTime                @default(now()) @map("created_at")
-  updatedAt         DateTime                @updatedAt @map("updated_at")
-  invitedBy         User?                   @relation("UserInvites", fields: [invitedById], references: [id], onDelete: SetNull)
-  invitedUsers      User[]                  @relation("UserInvites")
+  invite_code String?  @unique
+  invited_by_id String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  invited_by         User?                   @relation("UserInvites", fields: [invited_by_id], references: [id], onDelete: SetNull)
+  invited_users      User[]                  @relation("UserInvites")
   
-  authProviders     UserAuthProvider[]
-  sessions          UserSession[]
+  auth_providers     UserAuthProvider[]  // 用户认证提供者todo
+  sessions           UserSession[]
 
   // KYC Relations
-  kyc               Kyc?    @relation("user_kyc")
+  kyc                Kyc?    @relation("user_kyc")
   
-  fireblocksVault   UserFireblocksVault?
-  depositAddresses  FireblocksDepositAddress[]
+  fireblocks_vault   UserFireblocksVault?
+  deposit_addresses  FireblocksDepositAddress[]
   /// 用户内部钱包账户（反向关系），便于从用户直接读取账户状态、风控信息与账户编号。
-  walletAccount     WalletAccount?
+  wallet_account     WalletAccount?
   /// 用户充值订单列表（反向关系），用于按用户维度查询入金历史、状态流转与对账结果。
-  depositOrders     DepositOrder[]
+  deposit_orders     DepositOrder[]
   /// 用户提现订单列表（反向关系），用于按用户维度查询出金申请、审批状态与链上结果。
-  withdrawalOrders  WithdrawalOrder[]
+  withdrawal_orders  WithdrawalOrder[]
   /// 卡相关操作订单（反向关系），用于关联 caku 业务单与本地资金流水。
-  cardOperationOrders CardOperationOrder[]
+  card_operation_orders CardOperationOrder[]
 
-  @@index([emailVerifiedAt])
-  @@index([invitedById])
+  @@index([email_verified_at])
+  @@index([invited_by_id])
   @@map("users")
 }
 
 model UserAuthProvider {
   id              String       @id @default(cuid())
-  userId          String       @map("user_id")
+  user_id String
   provider        AuthProvider @default(EMAIL)
-  providerSubject String       @map("provider_subject")
-  linkedAccounts  Json?        @map("linked_accounts")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider_subject String
+  linked_accounts Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  user            User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerSubject])
-  @@index([userId])
+  @@unique([provider, provider_subject])
+  @@index([user_id])
   @@map("user_auth_providers")
 }
 
+/// 用户会话表，用于存储用户登录会话信息。
 model UserSession {
   id           String    @id @default(cuid())
-  userId       String    @map("user_id")
+  user_id String
   token        String    @unique
-  refreshToken String?   @map("refresh_token")
-  ipAddress    String?   @map("ip_address")
-  userAgent    String?   @map("user_agent")
-  expiresAt    DateTime  @map("expires_at")
-  lastUsedAt   DateTime  @default(now()) @map("last_used_at")
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token String?
+  ip_address String?
+  user_agent String?
+  expires_at DateTime
+  last_used_at DateTime  @default(now())
+  is_active Boolean  @default(true)
+  created_at DateTime  @default(now())
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([user_id])
   @@map("user_sessions")
 }
 
@@ -160,20 +167,20 @@ model UserSession {
 model UserFireblocksVault {
   id             String   @id @default(cuid())
   /// 平台用户 ID（users.id），一个用户只允许绑定一个 Vault。
-  userId         String   @unique @map("user_id")
+  user_id String  @unique
   /// Fireblocks Vault Account ID，一个 Vault 只归属一个用户。
-  vaultAccountId String   @unique @map("vault_account_id")
+  vault_account_id String  @unique
   /// Vault 展示名称（可选）。
-  vaultName      String?  @map("vault_name")
-  /// Fireblocks customerRefId（可选）。
-  customerRefId  String?  @map("customer_ref_id")
+  vault_name String?
+  /// Fireblocks customer_ref_id（可选）。
+  customer_ref_id String?
   /// 是否在 Fireblocks UI 中隐藏该 Vault。
-  hiddenOnUi     Boolean  @default(true) @map("hidden_on_ui")
+  hidden_on_ui Boolean  @default(true)
   /// 是否开启自动加油（Gas Station）。
-  autoFuel       Boolean  @default(false) @map("auto_fuel")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auto_fuel Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_fireblocks_vaults")
 }
@@ -183,33 +190,33 @@ model UserFireblocksVault {
 model FireblocksDepositAddress {
   id                       String   @id @default(cuid())
   /// 平台用户 ID（users.id）。
-  userId                   String   @map("user_id")
+  user_id String
   /// Fireblocks Vault Account ID（冗余字段，便于快速按 Vault 查询）。
-  vaultAccountId           String   @map("vault_account_id")
+  vault_account_id String
   /// Fireblocks 资产 legacy ID（例如 BTC/ETH）。
-  fireblocksAssetLegacyId  String   @map("fireblocks_asset_legacy_id")
+  fireblocks_asset_legacy_id String
   /// 链标识（可选，例如 ETH/TRX）。
-  blockchainKey            String?  @map("blockchain_key")
+  blockchain_key String?
   /// 链上充值地址。
   address                  String
   /// 链要求时使用的 memo/tag（可选）。
   tag                      String?
   /// 兼容历史格式的地址字段（可选）。
-  legacyAddress            String?  @map("legacy_address")
+  legacy_address String?
   /// Fireblocks 钱包状态（可选）。
-  walletStatus             String?  @map("wallet_status")
+  wallet_status String?
   /// 地址激活交易 ID（可选）。
-  activationTxId           String?  @map("activation_tx_id")
+  activation_tx_id String?
   /// Fireblocks 内部地址行 ID（可选）。
-  addressRowId             String?  @map("address_row_id")
+  address_row_id String?
   /// 是否为该资产的主地址。
-  isPrimary                Boolean  @default(true) @map("is_primary")
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
-  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  is_primary Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([userId, fireblocksAssetLegacyId])
-  @@index([vaultAccountId])
+  @@unique([user_id, fireblocks_asset_legacy_id])
+  @@index([vault_account_id])
   @@index([address])
   @@map("fireblocks_deposit_addresses")
 }
@@ -238,19 +245,19 @@ model Kyc {
 /// 用户内部钱包账户主表（产品层账户，不等同 Fireblocks Vault）。
 model WalletAccount {
   id               String              @id @default(cuid())
-  userId           String              @unique @map("user_id")
-  accountNo        String              @unique @map("account_no")
+  user_id String  @unique
+  account_no String  @unique
   status           WalletAccountStatus @default(PENDING)
-  riskLevel        String?             @map("risk_level")
-  frozenReason     String?             @map("frozen_reason")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @updatedAt @map("updated_at")
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  risk_level String?
+  frozen_reason String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   balances         WalletBalance[]
-  ledgerEntries    WalletLedgerEntry[]
-  depositOrders    DepositOrder[]
-  withdrawalOrders WithdrawalOrder[]
-  cardOperationOrders CardOperationOrder[]
+  ledger_entries    WalletLedgerEntry[]
+  deposit_orders    DepositOrder[]
+  withdrawal_orders WithdrawalOrder[]
+  card_operation_orders CardOperationOrder[]
 
   @@index([status])
   @@map("wallet_accounts")
@@ -259,17 +266,17 @@ model WalletAccount {
 /// 用户资产余额快照表（按账户 + 资产）。
 model WalletBalance {
   id              String        @id @default(cuid())
-  walletAccountId String        @map("wallet_account_id")
-  assetCode       String        @map("asset_code")
+  wallet_account_id String
+  asset_code String
   available       Decimal       @db.Decimal(36, 18)
   frozen          Decimal       @default(0) @db.Decimal(36, 18)
   total           Decimal       @db.Decimal(36, 18)
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  walletAccount   WalletAccount @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account   WalletAccount @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
 
-  @@unique([walletAccountId, assetCode])
-  @@index([assetCode])
+  @@unique([wallet_account_id, asset_code])
+  @@index([asset_code])
   @@map("wallet_balances")
 }
 
@@ -301,67 +308,67 @@ model WalletLedgerEntry {
 /// 充值订单表（一笔入金业务事件）。
 model DepositOrder {
   id                       String             @id @default(cuid())
-  walletAccountId          String             @map("wallet_account_id")
-  userId                   String             @map("user_id")
-  fireblocksVaultAccountId String?            @map("fireblocks_vault_account_id")
-  fireblocksTxId           String?            @unique @map("fireblocks_tx_id")
-  txHash                   String?            @map("tx_hash")
-  assetCode                String             @map("asset_code")
+  wallet_account_id String
+  user_id String
+  fireblocks_vault_account_id String?
+  fireblocks_tx_id String?  @unique
+  tx_hash String?
+  asset_code String
   network                  String?
   address                  String
   tag                      String?
   amount                   Decimal            @db.Decimal(36, 18)
   confirmations            Int                @default(0)
-  requiredConfirmations    Int                @default(0) @map("required_confirmations")
+  required_confirmations Int  @default(0)
   status                   DepositOrderStatus @default(PENDING)
-  detectedAt               DateTime?          @map("detected_at")
-  confirmedAt              DateTime?          @map("confirmed_at")
-  creditedAt               DateTime?          @map("credited_at")
-  failReason               String?            @map("fail_reason")
-  rawPayload               Json?              @map("raw_payload")
-  createdAt                DateTime           @default(now()) @map("created_at")
-  updatedAt                DateTime           @updatedAt @map("updated_at")
-  walletAccount            WalletAccount      @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
-  user                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  detected_at DateTime?
+  confirmed_at DateTime?
+  credited_at DateTime?
+  fail_reason String?
+  raw_payload Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account            WalletAccount      @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+  user                     User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
-  @@index([walletAccountId, status])
-  @@index([txHash])
-  @@index([address, assetCode])
+  @@index([user_id, created_at])
+  @@index([wallet_account_id, status])
+  @@index([tx_hash])
+  @@index([address, asset_code])
   @@map("deposit_orders")
 }
 
 /// 提现订单表（一笔出金业务事件）。
 model WithdrawalOrder {
   id              String                @id @default(cuid())
-  walletAccountId String                @map("wallet_account_id")
-  userId          String                @map("user_id")
-  requestId       String                @unique @map("request_id")
-  fireblocksTxId  String?               @unique @map("fireblocks_tx_id")
-  txHash          String?               @map("tx_hash")
-  assetCode       String                @map("asset_code")
+  wallet_account_id String
+  user_id String
+  request_id String  @unique
+  fireblocks_tx_id String?  @unique
+  tx_hash String?
+  asset_code String
   network         String?
-  toAddress       String                @map("to_address")
-  toTag           String?               @map("to_tag")
+  to_address String
+  to_tag String?
   amount          Decimal               @db.Decimal(36, 18)
-  feeAmount       Decimal?              @map("fee_amount") @db.Decimal(36, 18)
+  fee_amount Decimal? @db.Decimal(36, 18)
   status          WithdrawalOrderStatus @default(PENDING)
-  reviewStatus    String?               @map("review_status")
-  reviewedBy      String?               @map("reviewed_by")
-  reviewedAt      DateTime?             @map("reviewed_at")
-  submittedAt     DateTime?             @map("submitted_at")
-  confirmedAt     DateTime?             @map("confirmed_at")
-  failReason      String?               @map("fail_reason")
-  rawPayload      Json?                 @map("raw_payload")
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-  walletAccount   WalletAccount         @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
-  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review_status String?
+  reviewed_by String?
+  reviewed_at DateTime?
+  submitted_at DateTime?
+  confirmed_at DateTime?
+  fail_reason String?
+  raw_payload Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account   WalletAccount         @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+  user            User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
-  @@index([walletAccountId, status])
-  @@index([txHash])
-  @@index([toAddress, assetCode])
+  @@index([user_id, created_at])
+  @@index([wallet_account_id, status])
+  @@index([tx_hash])
+  @@index([to_address, asset_code])
   @@map("withdrawal_orders")
 }
 
@@ -369,29 +376,29 @@ model WithdrawalOrder {
 /// 用于关联移动端操作、caku 外部订单和本地钱包资金流水。
 model CardOperationOrder {
   id              String                   @id @default(cuid())
-  userId          String                   @map("user_id")
-  walletAccountId String                   @map("wallet_account_id")
-  operationType   CardOperationType        @map("operation_type")
+  user_id String
+  wallet_account_id String
+  operation_type CardOperationType
   status          CardOperationOrderStatus @default(PENDING)
-  idempotencyKey  String                   @unique @map("idempotency_key")
-  cakuOrderId     String?                  @unique @map("caku_order_id")
-  cardId          String?                  @map("card_id")
-  tokenAssetCode  String                   @map("token_asset_code")
-  tokenAmount     Decimal                  @db.Decimal(36, 18)
-  fiatCurrency    String                   @default("USD") @map("fiat_currency")
-  fiatAmount      Decimal                  @db.Decimal(36, 2) @map("fiat_amount")
-  fxRate          Decimal?                 @db.Decimal(36, 18) @map("fx_rate")
-  errorCode       String?                  @map("error_code")
-  errorMessage    String?                  @map("error_message")
-  rawRequest      Json?                    @map("raw_request")
-  rawResponse     Json?                    @map("raw_response")
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  updatedAt       DateTime                 @updatedAt @map("updated_at")
-  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  walletAccount   WalletAccount            @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  idempotency_key String  @unique
+  caku_order_id String?  @unique
+  card_id String?
+  token_asset_code String
+  token_amount     Decimal                  @db.Decimal(36, 18)
+  fiat_currency String  @default("USD")
+  fiat_amount Decimal  @db.Decimal(36, 2)
+  fx_rate Decimal?  @db.Decimal(36, 18)
+  error_code String?
+  error_message String?
+  raw_request Json?
+  raw_response Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  user            User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  wallet_account   WalletAccount            @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
-  @@index([walletAccountId, status])
-  @@index([operationType, status])
+  @@index([user_id, created_at])
+  @@index([wallet_account_id, status])
+  @@index([operation_type, status])
   @@map("card_operation_orders")
 }
