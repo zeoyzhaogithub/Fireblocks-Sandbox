@@ -1,0 +1,550 @@
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+
+enum WalletAccountStatus {
+  PENDING
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+
+enum LedgerEntryType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  FEE
+}
+
+
+enum LedgerEntryStatus {
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
+}
+
+
+enum AuthProvider {
+  EMAIL
+  AUTH0
+  GOOGLE
+  CUSTOM
+}
+
+enum DepositOrderStatus {
+  PENDING
+  DETECTED
+  CONFIRMED
+  CREDITED
+  FAILED
+}
+
+enum WithdrawalOrderStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  SUBMITTED
+  BROADCASTED
+  CONFIRMED
+  REJECTED
+  FAILED
+  CANCELLED
+}
+
+// 卡操作类型
+enum CardOperationType {
+  CARD_ISSUANCE_FEE
+  CARD_TOPUP
+}
+
+// 卡操作订单状态
+enum CardOperationOrderStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum KycStatus {
+  INITIAL // Initial state
+  PENDING // Under review
+  REJECTED // Rejected (RED with FINAL)
+  COMPLETED // Successfully verified (GREEN)
+  RETRY // Can RETRY
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  email             String?                 @unique
+  username          String?                 @unique
+  nickname String?
+  avatar            String?
+    password            String
+  status            UserStatus              @default(PENDING)
+  
+  // 邀请码
+  invite_code String?  @unique
+  invited_by_id String?
+
+  sessions           UserSession[]
+
+  // KYC Relations
+  kyc                Kyc?    @relation("user_kyc")
+  
+  custody_vault   UserCustodyVault?
+  custody_deposit_addresses  CustodyWalletDepositAddress[]
+  /// 用户内部钱包账户（反向关系），便于从用户直接读取账户状态、风控信息与账户编号。
+  wallet_account     WalletAccount?
+  /// 资金归集任务明细（反向关系），用于按用户维度查询归集执行情况。
+  sweep_items           SweepItem[]
+  @@index([invited_by_id])
+  @@map("users")
+}
+
+/// 用户会话表，用于存储用户登录会话信息。
+model UserSession {
+  id           String    @id @default(cuid())
+  user_id String
+  token        String    @unique
+  refresh_token String?
+  ip_address String?
+  user_agent String?
+  expires_at DateTime
+  last_used_at DateTime  @default(now())
+  is_active Boolean  @default(true)
+  created_at DateTime  @default(now())
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("user_sessions")
+}
+
+/// 平台用户与 Fireblocks Vault 的一对一映射表。
+/// 用于钱包开户与充值地址管理等流程。
+model UserCustodyVault {
+  id             String   @id @default(cuid())
+  /// 平台用户 ID（users.id），一个用户只允许绑定一个 Vault。
+  user_id String  @unique
+  /// Fireblocks Vault Account ID，一个 Vault 只归属一个用户。
+  vault_account_id String  @unique
+  /// Vault 展示名称（可选）。
+  vault_name String?
+  /// Fireblocks customer_ref_id（可选）。
+  customer_ref_id String?
+  /// 是否在 Fireblocks UI 中隐藏该 Vault。
+  hidden_on_ui Boolean  @default(true)
+  /// 是否开启自动加油（Gas Station）。
+  auto_fuel Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  custody_deposit_addresses CustodyWalletDepositAddress[]
+
+  @@map("user_custody_vaults")
+}
+
+/// 保存 Fireblocks 返回的用户充值地址信息。
+/// 约束为同一用户在同一资产 legacy id 下仅保留一条主记录。
+model CustodyWalletDepositAddress {
+  id                       String   @id @default(cuid())
+  /// 平台用户 ID（users.id）。
+  user_id String
+  /// Fireblocks Vault Account ID（冗余字段，便于快速按 Vault 查询）。
+  vault_account_id String
+  /// Fireblocks 资产 legacy ID（例如 BTC/ETH）。
+  fireblocks_asset_legacy_id String
+  /// 链标识（可选，例如 ETH/TRX）。
+  blockchain_key String?
+  /// 链上充值地址。
+  address                  String
+  /// 链要求时使用的 memo/tag（可选）。
+  tag                      String?
+  /// 兼容历史格式的地址字段（可选）。
+  legacy_address String?
+  /// Fireblocks 钱包状态（可选）。
+  wallet_status String?
+  /// 地址激活交易 ID（可选）。
+  activation_tx_id String?
+  /// Fireblocks 内部地址行 ID（可选）。
+  address_row_id String?
+  /// 是否为该资产的主地址。
+  is_primary Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  custody_vault            UserCustodyVault @relation(fields: [vault_account_id], references: [vault_account_id], onDelete: Cascade)
+
+  @@unique([user_id, fireblocks_asset_legacy_id])
+  @@index([vault_account_id])
+  @@index([address])
+  @@map("custody_wallet_deposit_addresses")
+}
+
+model Kyc {
+  id               Int       @id @default(autoincrement())
+  user_id          String?
+  external_user_id String // Sumsub external user ID, now Use user ID
+  applicant_id     String // Sumsub applicant ID
+  status           KycStatus @default(INITIAL)
+
+  level_name      String?
+  review_status   String?
+  review_result   String?
+  sandbox_mode    Boolean?
+  event_update_at DateTime? @db.Timestamptz(3)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User? @relation("user_kyc", fields: [user_id], references: [id])
+
+  @@unique([user_id])
+}
+
+/// 用户内部钱包账户主表（产品层账户，不等同 Fireblocks Vault）。
+model WalletAccount {
+  id               String              @id @default(cuid())
+  user_id String  @unique
+  account_no String  @unique
+  status           WalletAccountStatus @default(PENDING)
+  risk_level String?
+  frozen_reason String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  balances         WalletBalance[]
+  ledger_entries    WalletLedgerEntry[]
+  deposit_orders    DepositOrder[]
+  withdrawal_orders WithdrawalOrder[]
+  card_operation_orders CardOperationOrder[]
+
+  @@index([status])
+  @@map("wallet_accounts")
+}
+
+/// 用户资产余额快照表（按账户 + 资产）。
+model WalletBalance {
+  id              String        @id @default(cuid())
+  wallet_account_id String
+  asset_code String
+  available       Decimal       @db.Decimal(36, 18)
+  frozen          Decimal       @default(0) @db.Decimal(36, 18)
+  total           Decimal       @db.Decimal(36, 18)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account   WalletAccount @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+
+  @@unique([wallet_account_id, asset_code])
+  @@index([asset_code])
+  @@map("wallet_balances")
+}
+
+/// 资金流水总账（统一记录入金、出金、划转、调账等资金变化）。
+model WalletLedgerEntry {
+  id                String            @id @default(cuid())
+  wallet_account_id String
+  entry_type        LedgerEntryType
+  status            LedgerEntryStatus @default(PENDING)
+  asset_code        String
+  amount            Decimal           @db.Decimal(36, 18)
+  fee_amount        Decimal?          @db.Decimal(36, 18)
+  business_type     String?
+  business_id       String?
+  idempotency_key   String?           @unique
+  description       String?
+  posted_at         DateTime?
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
+  wallet_account    WalletAccount     @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_account_id, asset_code, created_at])
+  @@index([business_type, business_id])
+  @@map("wallet_ledger_entries")
+}
+
+/// 充值订单表（一笔入金业务事件）。
+model DepositOrder {
+  id                       String             @id @default(cuid())
+  wallet_account_id String
+  fireblocks_vault_account_id String?
+  fireblocks_tx_id String?  @unique
+  tx_hash String?
+  asset_code String
+  network                  String?
+  address                  String
+  tag                      String?
+  amount                   Decimal            @db.Decimal(36, 18)
+  confirmations            Int                @default(0)
+  required_confirmations Int  @default(0)
+  status                   DepositOrderStatus @default(PENDING)
+  detected_at DateTime?
+  confirmed_at DateTime?
+  credited_at DateTime?
+  fail_reason String?
+  raw_payload Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account            WalletAccount      @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_account_id, status])
+  @@index([tx_hash])
+  @@index([address, asset_code])
+  @@map("deposit_orders")
+}
+
+/// 提现订单表（一笔出金业务事件）。
+model WithdrawalOrder {
+  id              String                @id @default(cuid())
+  wallet_account_id String
+  request_id String  @unique
+  fireblocks_tx_id String?  @unique
+  tx_hash String?
+  asset_code String
+  network         String?
+  to_address String
+  to_tag String?
+  amount          Decimal               @db.Decimal(36, 18)
+  fee_amount Decimal? @db.Decimal(36, 18)
+  status          WithdrawalOrderStatus @default(PENDING)
+  review_status String?
+  reviewed_by String?
+  reviewed_at DateTime?
+  submitted_at DateTime?
+  confirmed_at DateTime?
+  fail_reason String?
+  raw_payload Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account   WalletAccount         @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_account_id, status])
+  @@index([tx_hash])
+  @@index([to_address, asset_code])
+  @@map("withdrawal_orders")
+}
+
+/// 卡操作订单桥接表（本地编排层）。
+/// 用于关联移动端操作、caku 外部订单和本地钱包资金流水。
+model CardOperationOrder {
+  id              String                   @id @default(cuid())
+  wallet_account_id String
+  operation_type CardOperationType
+  status          CardOperationOrderStatus @default(PENDING)
+  idempotency_key String  @unique
+  caku_order_id String?  @unique
+  card_id String?
+  token_asset_code String
+  token_amount     Decimal                  @db.Decimal(36, 18)
+  fiat_currency String  @default("USD")
+  fiat_amount Decimal  @db.Decimal(36, 2)
+  fx_rate Decimal?  @db.Decimal(36, 18)
+  error_code String?
+  error_message String?
+  raw_request Json?
+  raw_response Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  wallet_account   WalletAccount            @relation(fields: [wallet_account_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_account_id, status])
+  @@index([operation_type, status])
+  @@map("card_operation_orders")
+}
+
+enum SweepPlanStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SweepTriggerType {
+  MANUAL
+  SCHEDULED
+  THRESHOLD
+}
+
+enum SweepItemStatus {
+  PENDING
+  READY
+  SUBMITTED
+  CONFIRMING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum SweepTransferStatus {
+  PENDING
+  SUBMITTED
+  BROADCASTED
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+// enum SweepReconciliationStatus {
+//   PENDING
+//   RUNNING
+//   COMPLETED
+//   FAILED
+// }
+
+/// 资金归集计划（为什么归集、归集范围、策略）。
+model SweepPlan {
+  /// 归集计划主键。
+  id                           String                  @id @default(cuid())
+  /// 归集资产代码（如 USDT、USDC）。
+  asset_code                   String
+  /// 归集来源范围（如 ALL_USERS、RISK_GROUP_A）。
+  source_scope                 String
+  /// 归集目标金库账户 ID（主归集金库）。
+  destination_vault_account_id String
+  /// 计划状态。
+  status                       SweepPlanStatus         @default(PENDING)
+  /// 触发类型（手动/定时/阈值）。
+  trigger_type                 SweepTriggerType
+  /// 阈值触发金额（可选）。
+  threshold_amount             Decimal?                @db.Decimal(36, 18)
+  /// 最小保留金额（可选）。
+  min_reserve_amount           Decimal?                @db.Decimal(36, 18)
+  /// 幂等键（防重复创建同一计划）。
+  idempotency_key              String?                 @unique
+  /// 计划创建人（系统或管理员 ID，可选）。
+  created_by                   String?
+  /// 计划开始执行时间（可选）。
+  started_at                   DateTime?
+  /// 计划完成时间（可选）。
+  completed_at                 DateTime?
+  /// 计划失败原因（可选）。
+  fail_reason                  String?
+  /// 原始扩展载荷（可选）。
+  raw_payload                  Json?
+  /// 记录创建时间。
+  created_at                   DateTime                @default(now())
+  /// 记录更新时间。
+  updated_at                   DateTime                @updatedAt
+  /// 计划下的归集明细列表（反向关系）。
+  sweep_items                  SweepItem[]
+
+  @@index([asset_code, status])
+  @@index([trigger_type, status])
+  @@index([destination_vault_account_id])
+  @@map("sweep_plans")
+}
+
+/// 资金归集明细（每个来源地址/账户一条任务）。
+model SweepItem {
+  /// 归集明细主键。
+  id                    String              @id @default(cuid())
+  /// 所属归集计划 ID。
+  sweep_plan_id         String
+  /// 对应平台用户 ID。
+  user_id               String
+  /// 来源金库账户 ID。
+  from_vault_account_id String
+  /// 来源地址（可选，按地址归集场景使用）。
+  from_address          String?
+  /// 归集资产代码。
+  asset_code            String
+  /// 可归集余额快照。
+  available_amount      Decimal             @db.Decimal(36, 18)
+  /// 本次计划归集金额。
+  sweep_amount          Decimal             @db.Decimal(36, 18)
+  /// 明细状态。
+  status                SweepItemStatus     @default(PENDING)
+  /// 明细失败原因（可选）。
+  fail_reason           String?
+  /// 记录创建时间。
+  created_at            DateTime            @default(now())
+  /// 记录更新时间。
+  updated_at            DateTime            @updatedAt
+  /// 归属计划（外键关系）。
+  sweep_plan            SweepPlan           @relation(fields: [sweep_plan_id], references: [id], onDelete: Cascade)
+  /// 归属用户（外键关系）。
+  user                  User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  /// 明细对应的转账执行记录（反向关系）。
+  sweep_transfers       SweepTransfer[]
+
+  @@index([sweep_plan_id, status])
+  @@index([user_id, status])
+  @@index([from_vault_account_id, asset_code])
+  @@map("sweep_items")
+}
+
+/// 资金归集执行记录（对接 Fireblocks transaction）。
+model SweepTransfer {
+  /// 归集转账记录主键。
+  id             String              @id @default(cuid())
+  /// 关联归集明细 ID。
+  sweep_item_id  String
+  /// Fireblocks 交易 ID（可选，提交后写入）。
+  fireblocks_tx_id String?           @unique
+  /// 业务请求 ID（幂等控制）。
+  request_id     String              @unique
+  /// 链上交易哈希（可选）。
+  tx_hash        String?
+  /// 归集转账金额。
+  amount         Decimal             @db.Decimal(36, 18)
+  /// 手续费金额（可选）。
+  fee_amount     Decimal?            @db.Decimal(36, 18)
+  /// 执行状态。
+  status         SweepTransferStatus @default(PENDING)
+  /// 提交 Fireblocks 时间（可选）。
+  submitted_at   DateTime?
+  /// 链上确认时间（可选）。
+  confirmed_at   DateTime?
+  /// 执行失败原因（可选）。
+  fail_reason    String?
+  /// Fireblocks 原始返回载荷（可选）。
+  raw_payload    Json?
+  /// 记录创建时间。
+  created_at     DateTime            @default(now())
+  /// 记录更新时间。
+  updated_at     DateTime            @updatedAt
+  /// 对应归集明细（外键关系）。
+  sweep_item     SweepItem           @relation(fields: [sweep_item_id], references: [id], onDelete: Cascade)
+
+  @@index([sweep_item_id, status])
+  @@index([tx_hash])
+  @@map("sweep_transfers")
+}
+
+/// 资金归集对账结果（可选但建议）。
+// model SweepReconciliation {
+//   /// 对账记录主键。
+//   id             String                    @id @default(cuid())
+//   /// 业务对账日期。
+//   biz_date       DateTime
+//   /// 对账资产代码。
+//   asset_code     String
+//   /// 对账任务状态。
+//   status         SweepReconciliationStatus @default(PENDING)
+//   /// 差异条数。
+//   mismatch_count Int                       @default(0)
+//   /// 对账开始时间（可选）。
+//   started_at     DateTime?
+//   /// 对账完成时间（可选）。
+//   completed_at   DateTime?
+//   /// 对账失败原因（可选）。
+//   fail_reason    String?
+//   /// 对账报告明细（可选）。
+//   report_payload Json?
+//   /// 记录创建时间。
+//   created_at     DateTime                  @default(now())
+//   /// 记录更新时间。
+//   updated_at     DateTime                  @updatedAt
+
+//   @@unique([biz_date, asset_code])
+//   @@index([status, created_at])
+//   @@map("sweep_reconciliation")
+// }
