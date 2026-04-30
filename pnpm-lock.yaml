@@ -170,6 +170,9 @@ importers:
       '@prisma/client':
         specifier: catalog:sql
         version: 7.8.0(prisma@7.8.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3))(typescript@6.0.3)
+      '@prisma/client-runtime-utils':
+        specifier: 7.8.0
+        version: 7.8.0
     devDependencies:
       prisma:
         specifier: catalog:sql
