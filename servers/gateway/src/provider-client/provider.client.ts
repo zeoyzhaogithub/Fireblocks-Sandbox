@@ -60,6 +60,17 @@ export class ProviderClient {
     return this.get<unknown>(`/transactions/${encodeURIComponent(txId)}`);
   }
 
+  createTransfer(input: {
+    sourceVaultAccountId: string;
+    destinationVaultAccountId: string;
+    assetId: string;
+    amount: string;
+    externalTxId?: string;
+    note?: string;
+  }) {
+    return this.post<unknown>("/transactions/transfer", input);
+  }
+
   getDepositAssetsConfig() {
     return this.get<unknown>("/config/deposit-assets");
   }

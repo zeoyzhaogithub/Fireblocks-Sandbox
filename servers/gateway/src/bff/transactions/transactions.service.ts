@@ -12,4 +12,15 @@ export class TransactionsService {
   getById(txId: string) {
     return this.providerClient.getTransactionById(txId);
   }
+
+  createTransfer(input: {
+    sourceVaultAccountId: string;
+    destinationVaultAccountId: string;
+    assetId: string;
+    amount: string;
+    externalTxId?: string;
+    note?: string;
+  }) {
+    return this.providerClient.createTransfer(input);
+  }
 }

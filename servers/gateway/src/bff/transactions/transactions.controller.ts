@@ -1,9 +1,24 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { TransactionsService } from "./transactions.service";
 
 @Controller("transactions")
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
+
+  @Post("transfer")
+  createTransfer(
+    @Body()
+    body: {
+      sourceVaultAccountId: string;
+      destinationVaultAccountId: string;
+      assetId: string;
+      amount: string;
+      externalTxId?: string;
+      note?: string;
+    },
+  ) {
+    return this.transactionsService.createTransfer(body);
+  }
 
   @Get()
   list(

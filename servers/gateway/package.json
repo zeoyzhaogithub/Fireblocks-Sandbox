@@ -12,6 +12,9 @@
     "@service/redis": "workspace:^",
     "bull": "catalog:utils"
   },
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.19"
+  },
   "service": {
     "port": 3100
   }

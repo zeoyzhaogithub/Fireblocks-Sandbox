@@ -8,7 +8,6 @@ import { PrismaService } from "./database/prisma.service";
 import { DepositAssetsController } from "./deposit-assets/deposit-assets.controller";
 import { DepositAssetsService } from "./deposit-assets/deposit-assets.service";
 import { DepositAddressRepository } from "./fireblocks-mapping/deposit-address.repository";
-import { VaultMappingRepository } from "./fireblocks-mapping/vault-mapping.repository";
 import { HealthController } from "./health/health.controller";
 import { TransactionsController } from "./transactions/transactions.controller";
 import { TransactionsRepository } from "./transactions/transactions.repository";
@@ -42,7 +41,6 @@ import { WalletOnboardingService } from "./wallet-onboarding/wallet-onboarding.s
     VaultsRepository,
     TransactionsRepository,
     UsersRepository,
-    VaultMappingRepository,
     DepositAddressRepository,
   ],
 })

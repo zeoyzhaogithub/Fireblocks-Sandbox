@@ -23,15 +23,19 @@ cp .env.example .env
 docker compose --env-file .env -f docker/docker-compose.service.yml up -d
 ```
 
-后续只要每次改完 schema.prisma 后执行一次：
+后续每次改完 Prisma schema，按下面最小流程执行：
 ```bash
+pnpm install
+pnpm exec dotenv -e .env -- pnpm --filter @service/database exec prisma migrate dev --name split_schema_and_remove_duplicates
 pnpm exec dotenv -e .env -- pnpm --filter @service/database exec prisma generate
-
-dotenv -e .env -- pnpm --filter @service/database exec prisma migrate dev --name <你的变更名>
+# 可选：仅当你发现类型未更新或需要单独刷新 Client 时再执行
 dotenv -e .env -- pnpm --filter @service/database exec prisma generate
 ```
 
-就不会再出现这类“generated client 找不到”的问题
+如果你只是调整 schema、暂时不落库，可以只执行：
+```bash
+dotenv -e .env -- pnpm --filter @service/database exec prisma generate
+```
 
 
  校验 schema
