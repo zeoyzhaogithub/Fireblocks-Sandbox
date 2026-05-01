@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Fireblocks Sandbox Console",
+    "slug": "fireblocks-sandbox-console",
+    "scheme": "fireblocks-sandbox-console",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
