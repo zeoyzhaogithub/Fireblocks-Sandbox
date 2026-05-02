@@ -1,59 +1,48 @@
-import { Injectable } from "@nestjs/common";
-import { AuthProvider } from "@service/database/client";
+import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class UsersRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async upsertUserByEmail(email: string) {
+    // Username is required in current schema; use unique email as stable username.
+    const username = email;
+    // Password is required in current schema; use a non-loginable placeholder for email-only login flow.
+    const placeholderPassword = "__EMAIL_LOGIN_ONLY__";
     return this.prisma.user.upsert({
       where: { email },
       create: {
         email,
-        emailVerifiedAt: new Date(),
+        username,
+        password: placeholderPassword,
         status: "ACTIVE",
-        loginCount: 1,
-        lastLoginAt: new Date(),
       },
       update: {
-        emailVerifiedAt: new Date(),
         status: "ACTIVE",
-        lastLoginAt: new Date(),
-        loginCount: { increment: 1 },
       },
       select: {
         id: true,
         email: true,
-        emailVerifiedAt: true,
-        createdAt: true,
-        lastLoginAt: true,
-        loginCount: true,
+        created_at: true,
+        status: true,
+        vault_account_id: true,
       },
     });
   }
 
-  async upsertEmailAuthProvider(userId: string, normalizedEmail: string) {
-    const existing = await this.prisma.userAuthProvider.findFirst({
-      where: {
-        provider: AuthProvider.EMAIL,
-        providerSubject: normalizedEmail,
-      },
-      select: { id: true },
+  async updateVaultAccountId(userId: string, vaultAccountId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { vault_account_id: vaultAccountId },
+      select: { id: true, vault_account_id: true },
     });
-    if (existing) {
-      return this.prisma.userAuthProvider.update({
-        where: { id: existing.id },
-        data: { userId },
-      });
-    }
-    return this.prisma.userAuthProvider.create({
-      data: {
-        userId,
-        provider: AuthProvider.EMAIL,
-        providerSubject: normalizedEmail,
-        linkedAccounts: [{ type: "email", address: normalizedEmail }],
-      },
+  }
+
+  async findById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, vault_account_id: true },
     });
   }
 }

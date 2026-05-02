@@ -1,11 +1,18 @@
-import { Inject, Injectable } from "@nestjs/common";
-import { getTransactionById, listTransactions } from "@service/fireblocks";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import { createVaultToVaultTransfer, getTransactionById, listTransactions } from "@service/fireblocks";
+import { CreateTransferDto } from "./dto/create-transfer.dto";
 import { TransactionsRepository } from "./transactions.repository";
 
 @Injectable()
 export class TransactionsService {
   constructor(@Inject(TransactionsRepository) private readonly transactionsRepository: TransactionsRepository) {}
 
+  /**
+   * 调用 Fireblocks 列表接口并做参数兜底：
+   * - limit 限制在 1~500（默认 100）
+   * - 空字符串参数归一化为 undefined
+   * - 拉取后记录一次查询快照（当前为占位实现）
+   */
   async listTransactions(
     limit?: string,
     next?: string,
@@ -37,6 +44,9 @@ export class TransactionsService {
     return data;
   }
 
+  /**
+   * 查询单笔 Fireblocks 交易详情，并记录查询快照（当前为占位实现）。
+   */
   async getTransaction(txId: string) {
     const data = await getTransactionById({ txId });
 
@@ -45,6 +55,70 @@ export class TransactionsService {
       status: data.status,
       subStatus: data.subStatus,
       fetchedAt: Date.now(),
+    });
+
+    return data;
+  }
+
+  /**
+   * 创建一笔 Vault -> Vault 转账交易（用于沙盒模拟转账）。
+   */
+  async createTransfer(input: CreateTransferDto) {
+    const payload = {
+      sourceVaultAccountId: input.sourceVaultAccountId.trim(),
+      destinationVaultAccountId: input.destinationVaultAccountId.trim(),
+      assetId: input.assetId.trim(),
+      amount: input.amount.trim(),
+      externalTxId: input.externalTxId?.trim() || undefined,
+      note: input.note?.trim() || undefined,
+    };
+
+    const sourceUserId = await this.transactionsRepository.findUserIdByVaultAccountId(payload.sourceVaultAccountId);
+    const destinationUserId = await this.transactionsRepository.findUserIdByVaultAccountId(payload.destinationVaultAccountId);
+    if (!sourceUserId || !destinationUserId) {
+      throw new BadRequestException(
+        "sourceVaultAccountId 或 destinationVaultAccountId 未关联到本地用户，无法同步写入 WalletFlowRecord",
+      );
+    }
+
+    const sourceWalletAccountId = await this.transactionsRepository.ensureWalletAccountByUserId(sourceUserId);
+    const destinationWalletAccountId = await this.transactionsRepository.ensureWalletAccountByUserId(destinationUserId);
+
+    const data = await createVaultToVaultTransfer(payload);
+
+    const txId = typeof data?.id === "string" ? data.id : undefined;
+    const txHash = typeof data?.txHash === "string" ? data.txHash : undefined;
+    const status = typeof data?.status === "string" ? data.status.toUpperCase() : "PENDING";
+    const mappedStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED"
+      = status === "COMPLETED"
+        ? "COMPLETED"
+        : status === "FAILED"
+          ? "FAILED"
+          : status === "CANCELLED"
+            ? "CANCELLED"
+            : "PROCESSING";
+
+    // 写两条钱包流水：转出=WITHDRAWAL，转入=DEPOSIT。
+    // 注意：WalletFlowRecord.custody_tx_id 为全局唯一，同一 txId 仅写在 WITHDRAWAL 记录上。
+    await this.transactionsRepository.createTransferFlowRecords({
+      sourceWalletAccountId,
+      destinationWalletAccountId,
+      status: mappedStatus,
+      assetCode: payload.assetId,
+      amount: payload.amount,
+      sourceAddress: `vault:${payload.sourceVaultAccountId}`,
+      destinationAddress: `vault:${payload.destinationVaultAccountId}`,
+      txHash,
+      custodyTxId: txId,
+    });
+
+    await this.transactionsRepository.saveCreateSnapshot({
+      type: "VAULT_TO_VAULT_TRANSFER",
+      request: payload,
+      txId: data?.id,
+      status: data?.status,
+      subStatus: data?.subStatus,
+      createdAt: Date.now(),
     });
 
     return data;

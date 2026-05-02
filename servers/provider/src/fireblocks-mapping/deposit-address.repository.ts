@@ -1,53 +1,38 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class DepositAddressRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  /**
+   *  在 custody_wallet_deposit_addresses 表 中 创建或更新 存款地址数据
+   * @param input - The input object containing user id, asset id, network key and address
+   * @returns The deposit address object
+   */
   upsertByUserAndAsset(input: {
     userId: string;
-    vaultAccountId: string;
-    fireblocksAssetLegacyId: string;
-    blockchainKey?: string;
+    assetId: string;
+    networkKey: string;
     address: string;
-    tag?: string;
-    legacyAddress?: string;
-    walletStatus?: string;
-    activationTxId?: string;
-    addressRowId?: string;
-    isPrimary?: boolean;
   }) {
-    return this.prisma.fireblocksDepositAddress.upsert({
+    return this.prisma.custodyWalletDepositAddress.upsert({
       where: {
-        userId_fireblocksAssetLegacyId: {
-          userId: input.userId,
-          fireblocksAssetLegacyId: input.fireblocksAssetLegacyId,
+        user_id_network_key_asset_id: {
+          user_id: input.userId,
+          network_key: input.networkKey,
+          asset_id: input.assetId,
         },
       },
       create: {
-        userId: input.userId,
-        vaultAccountId: input.vaultAccountId,
-        fireblocksAssetLegacyId: input.fireblocksAssetLegacyId,
-        blockchainKey: input.blockchainKey,
+        user_id: input.userId,
+        asset_id: input.assetId,
+        network_key: input.networkKey,
         address: input.address,
-        tag: input.tag,
-        legacyAddress: input.legacyAddress,
-        walletStatus: input.walletStatus,
-        activationTxId: input.activationTxId,
-        addressRowId: input.addressRowId,
-        isPrimary: input.isPrimary ?? true,
       },
       update: {
-        vaultAccountId: input.vaultAccountId,
-        blockchainKey: input.blockchainKey,
+        network_key: input.networkKey,
         address: input.address,
-        tag: input.tag,
-        legacyAddress: input.legacyAddress,
-        walletStatus: input.walletStatus,
-        activationTxId: input.activationTxId,
-        addressRowId: input.addressRowId,
-        isPrimary: input.isPrimary ?? true,
       },
     });
   }

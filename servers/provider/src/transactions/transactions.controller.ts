@@ -1,5 +1,6 @@
-import { Controller, Get, Inject, Param, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { CreateTransferDto } from "./dto/create-transfer.dto";
 import { TransactionsService } from "./transactions.service";
 
 @ApiTags("fireblocks-transactions")
@@ -7,6 +8,84 @@ import { TransactionsService } from "./transactions.service";
 export class TransactionsController {
   constructor(@Inject(TransactionsService) private readonly transactionsService: TransactionsService) {}
 
+  /**
+   * 创建一笔 Vault -> Vault 模拟转账交易（沙盒验证主流程）。
+   */
+  @Post("transactions/transfer")
+  @ApiOperation({
+    summary: "Create a Vault->Vault transfer transaction",
+    description:
+      "Creates a transfer transaction in Fireblocks from one vault account to another. Suitable for sandbox transfer simulation.",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["sourceVaultAccountId", "destinationVaultAccountId", "assetId", "amount"],
+      properties: {
+        sourceVaultAccountId: {
+          type: "string",
+          description: "源 vaultAccountId（转出金库）",
+          example: "12",
+        },
+        destinationVaultAccountId: {
+          type: "string",
+          description: "目标 vaultAccountId（转入金库）",
+          example: "34",
+        },
+        assetId: {
+          type: "string",
+          description: "资产编码（如 BTC_TEST / ETH_TEST3 / USDT_TRX）",
+          example: "ETH_TEST3",
+        },
+        amount: {
+          type: "string",
+          description: "转账金额（字符串）",
+          example: "0.01",
+        },
+        externalTxId: {
+          type: "string",
+          description: "业务幂等标识（建议传唯一值，防止重复提交）",
+          example: "transfer-20260429-001",
+          nullable: true,
+        },
+        note: {
+          type: "string",
+          description: "交易备注",
+          example: "sandbox vault to vault transfer",
+          nullable: true,
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Transfer transaction created",
+    schema: {
+      example: {
+        id: "f9a936aa-77dc-49f6-9ab5-3f5e455f78f9",
+        externalTxId: "transfer-20260429-001",
+        assetId: "ETH_TEST3",
+        amount: "0.01",
+        status: "SUBMITTED",
+        subStatus: "PENDING_SIGNATURE",
+        createdAt: 1713959200000,
+        source: {
+          type: "VAULT_ACCOUNT",
+          id: "12",
+        },
+        destination: {
+          type: "VAULT_ACCOUNT",
+          id: "34",
+        },
+      },
+    },
+  })
+  async createTransfer(@Body() body: CreateTransferDto) {
+    return this.transactionsService.createTransfer(body);
+  }
+
+  /**
+   * 查询 Fireblocks 交易列表（支持分页/时间窗/状态过滤）。
+   */
   @Get("transactions")
   @ApiOperation({
     summary: "List Fireblocks transactions",
@@ -46,6 +125,9 @@ export class TransactionsController {
     return this.transactionsService.listTransactions(limit, next, prev, before, after, status);
   }
 
+  /**
+   * 根据 Fireblocks txId 查询单笔交易详情（用于状态追踪/排障）。
+   */
   @Get("transactions/:txId")
   @ApiOperation({
     summary: "Get a Fireblocks transaction by txId",

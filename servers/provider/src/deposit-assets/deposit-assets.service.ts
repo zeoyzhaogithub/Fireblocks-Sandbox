@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { readFileSync } from "node:fs";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { readFileSync, watchFile, unwatchFile } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import {
   DEPOSIT_BLOCKCHAIN_KEYS,
@@ -71,13 +71,22 @@ function parseAndValidate(raw: string): DepositAssetsConfigFile {
 }
 
 @Injectable()
-export class DepositAssetsService implements OnModuleInit {
+export class DepositAssetsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DepositAssetsService.name);
   private config: DepositAssetsConfigFile = { assets: [] };
   private resolvedPath = "";
+  private watching = false;
 
   onModuleInit(): void {
     this.reload();
+    this.enableHotReload();
+  }
+
+  onModuleDestroy(): void {
+    if (this.watching) {
+      unwatchFile(this.resolvedPath);
+      this.watching = false;
+    }
   }
 
   /** 配置文件绝对路径（便于排障） */
@@ -103,7 +112,9 @@ export class DepositAssetsService implements OnModuleInit {
   }
 
   reload(): void {
-    this.resolvedPath = resolveConfigPath();
+    if (!this.resolvedPath) {
+      this.resolvedPath = resolveConfigPath();
+    }
     const raw = readFileSync(this.resolvedPath, "utf8");
     this.config = parseAndValidate(raw);
     const enabled = this.getEnabledEntries();
@@ -117,5 +128,26 @@ export class DepositAssetsService implements OnModuleInit {
     this.logger.log(
       `Loaded deposit-assets from ${this.resolvedPath} (total ${this.config.assets.length}, enabled ${enabled.length})`,
     );
+  }
+
+  private enableHotReload(): void {
+    if (this.watching || !this.resolvedPath) {
+      return;
+    }
+    watchFile(this.resolvedPath, { interval: 800 }, (curr, prev) => {
+      if (curr.mtimeMs === prev.mtimeMs) {
+        return;
+      }
+      try {
+        this.reload();
+      }
+      catch (error) {
+        this.logger.error(
+          `Reload deposit-assets failed, keep previous in-memory config. file=${this.resolvedPath}; error=${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
+    this.watching = true;
+    this.logger.log(`Enabled hot reload for deposit-assets: ${this.resolvedPath}`);
   }
 }
