@@ -1,0 +1,43 @@
+/// ======================================================
+/// 3. KYC Management
+/// 职责：
+/// - KYC 审核状态与三方回执（Kyc）
+/// - 托管充值地址映射（CustodyWalletDepositAddress）
+/// 典型业务时机：
+/// - 提交/回调 KYC、生成或查询入金地址
+/// 依赖关系：
+/// - 强依赖 User（user_id 外键）
+/// - 下游被充值入账流程引用
+/// ======================================================
+
+model Kyc {
+  id               Int       @id @default(autoincrement())
+  user_id          String?
+  external_user_id String // Sumsub external user ID, now Use user ID
+  applicant_id     String // Sumsub applicant ID
+  status           KycStatus @default(INITIAL)
+
+  level_name      String?
+  review_status   String?
+  review_result   String?
+  sandbox_mode    Boolean?
+  event_update_at DateTime? @db.Timestamptz(3)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User? @relation("user_kyc", fields: [user_id], references: [id])
+
+  @@unique([user_id])
+  @@index([external_user_id])
+  @@index([applicant_id])
+  @@map("kyc")
+}
+
+enum KycStatus {
+  INITIAL // Initial state
+  PENDING // Under review
+  REJECTED // Rejected (RED with FINAL)
+  COMPLETED // Successfully verified (GREEN)
+  RETRY // Can RETRY
+}

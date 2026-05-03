@@ -1,0 +1,69 @@
+/// ======================================================
+/// 6. Ledger Management
+/// 职责：
+/// - 统一资金总账（WalletLedgerEntry）
+/// 典型业务时机：
+/// - Fireblocks 入账、卡消费扣减、手续费扣减等最终记账
+/// - 资金流转追溯、客诉排查、审计与核对
+/// 依赖关系：
+/// - 强依赖 User（通过 user_id）
+/// - 接收 flow/card 等业务域的记账请求（business_type/business_id）
+/// ======================================================
+
+
+enum LedgerEntryType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  FEE
+}
+
+enum LedgerEntryStatus {
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
+}
+
+/// 账务记录来源（用于多态关联业务单据）
+enum LedgerBusinessType {
+  WALLET_FLOW_RECORD
+  CARD_OPERATION_RECORD
+  SWEEP_TRANSFER
+  ADJUSTMENT
+}
+
+/// 平台资金总账（单条记录代表一次资产变动）
+model WalletLedgerEntry {
+  id      String @id @default(cuid())
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  /// 资金变动类型（入金/出金/手续费/调账）
+  entry_type LedgerEntryType
+  /// 账务状态（待入账/已入账/失败/冲正）
+  status LedgerEntryStatus @default(PENDING)
+  /// 资产代码（如 USDT、TON）
+  asset_code String
+  /// 变动金额（正值，方向由 entry_type 表达）
+  amount Decimal @db.Decimal(36, 18)
+  /// 手续费金额（可选）
+  fee_amount Decimal? @db.Decimal(36, 18)
+
+  /// 来源业务类型与业务主键（多态关联）
+  business_type LedgerBusinessType?
+  business_id   String?
+
+  /// 幂等键（防止重复记账）
+  idempotency_key String? @unique
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id, asset_code, created_at])
+  @@index([user_id, status, created_at])
+  @@index([business_type, business_id])
+  @@map("wallet_ledger_entries")
+}

@@ -1,0 +1,84 @@
+/// ======================================================
+/// 1. User Management
+/// 职责：
+/// - 用户主档（User）
+/// - 登录会话（UserSession）
+/// 典型业务时机：
+/// - 注册、登录、登出、用户封禁/解封
+/// 依赖关系：
+/// - 被 KYC、Authenticator、资产、账务等域通过 user_id 关联
+/// ======================================================
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  /// Unique identifier (UUID)
+  id       String     @id @default(uuid())
+  /// Primary login credential
+  email    String     @unique
+  /// Display name
+  username String
+  /// Optional user alias
+  nickname String?
+  /// URL to the user profile image
+  avatar   String?
+  /// Hashed password string
+  password String
+  /// Account lifecycle status
+  status   UserStatus @default(ACTIVE)
+
+  // --- Referral System ---
+  /// Unique referral code for the user
+  invite_code   String? @unique
+  /// ID of the user who invited this user
+  inviter_id    String?
+  /// Self-relation for the inviter
+  inviter       User?   @relation("UserReferrals", fields: [inviter_id], references: [id])
+  /// List of users invited by this user
+  invited_users User[]  @relation("UserReferrals")
+
+  // --- KYC/KYT Relation ---
+  /// One-to-one link to KYC verification data
+  kyc              Kyc?
+  /// One-to-many link to KYT alerts
+  kyt              Kyt[]
+
+  // --- External Integrations ---
+  /// Unique ID for Fireblocks vault
+  vault_account_id String
+  /// Assets associated with the Fireblocks vault
+  vault_assets     VaultAsset[]
+  /// Internal platform assets/balances
+  assets           Asset[]
+  /// Security authenticators (TOTP, Email, etc.)
+  authenticators   Authenticator[]
+
+  // --- Timestamps ---
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([inviter_id])
+  @@map("users")
+}
+
+/// User Session Management
+model UserSession {
+  id            String   @id @default(cuid())
+  user_id       String
+  token         String   @unique
+  refresh_token String?
+  ip_address    String?
+  user_agent    String?
+  expires_at    DateTime
+  last_used_at  DateTime @default(now())
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("user_sessions")
+}

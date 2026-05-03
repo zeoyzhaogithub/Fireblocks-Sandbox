@@ -1,0 +1,42 @@
+/// ======================================================
+/// 2. Authenticator Management
+/// 职责：
+/// - 用户多因子认证信息（Authenticator）
+/// - MFA 类型枚举与安全状态字段
+/// 典型业务时机：
+/// - 绑定/启用/禁用 MFA，登录二次校验，锁定与解锁
+/// 依赖关系：
+/// - 强依赖 User（user_id 外键）
+/// ======================================================
+
+model Authenticator {
+  id      Int    @id @default(autoincrement())
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  type            AuthenticatorType
+  // --- Core ---
+  secret          String? // TOTP secret / Hashed code
+  identifier      String? // EMAIL: Email address / TELEGRAM_OTP: Phone number or Telegram ID
+  // --- Status ---
+  verified        Boolean           @default(false)
+  enabled         Boolean           @default(false)
+  // --- Security ---
+  failed_attempts Int               @default(0)
+  locked_until    DateTime?
+  backup_codes    String? // TOTP backup codes (JSON array encrypted storage)
+
+  // --- timestamp ---
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([user_id, type])
+  @@map("authenticators")
+}
+
+enum AuthenticatorType {
+  TOTP // Time-based OTP (Google Authenticator)
+  TELEGRAM_OTP // Telegram OTP (SMS)
+  EMAIL // Email OTP
+}

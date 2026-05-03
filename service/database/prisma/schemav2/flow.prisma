@@ -1,0 +1,62 @@
+/// ======================================================
+/// 5. Flow Management
+/// 职责：
+/// - 充值/提现业务单据（WalletFlowRecord）
+/// - 表达业务流程状态推进，不直接作为最终账本
+/// 典型业务时机：
+/// - 用户发起充值/提现、链上交易回调、失败重试与取消
+/// 依赖关系：
+/// - 依赖 User 与托管侧交易标识（custody_tx_id / tx_hash）
+/// - 与 Ledger 通过 business_type/business_id 对账关联
+/// ======================================================
+
+enum WalletFlowType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum WalletFlowStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// 钱包充值/提现流程记录（非最终账本）
+model WalletFlowRecord {
+  id                String           @id @default(cuid())
+  /// 平台钱包账户 ID（wallet_accounts.id）。
+  wallet_account_id String
+  /// 资金变更类型（充值/提现）。
+  flow_type         WalletFlowType
+  /// 资金变更状态。
+  status            WalletFlowStatus @default(PENDING)
+  /// 托管侧交易 ID（首次检测后回填，唯一）。
+  custody_tx_id     String?          @unique
+  /// 链上交易哈希（可用于链上追踪与对账）。
+  tx_hash           String?
+  /// 资产代码（如 USDT）。
+  asset_code        String
+  /// 链网络标识（如 TRON/TON）。
+  network           String?
+  /// 地址字段：充值时为入金地址，提现时为目标地址。
+  address           String
+  /// 本次资金变更金额。
+  amount            Decimal          @db.Decimal(36, 18)
+  /// 手续费金额（提现或特殊场景可能有值）。
+  fee_amount        Decimal?         @db.Decimal(36, 18)
+  /// 失败原因（仅失败场景写入）。
+  fail_reason       String?
+  /// 记录创建时间。
+  created_at        DateTime         @default(now())
+  /// 记录更新时间（状态推进、确认数变化时会自动更新）。
+  updated_at        DateTime         @updatedAt
+
+  @@index([wallet_account_id, status])
+  @@index([tx_hash])
+  @@index([address, asset_code])
+  @@map("wallet_flow_records")
+}
+
+

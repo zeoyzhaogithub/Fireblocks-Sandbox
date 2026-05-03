@@ -1,0 +1,115 @@
+/// ======================================================
+/// 7. Card Management
+/// 职责：
+/// - 记录卡侧业务请求与平台资金扣减映射（CardOperationRecord）
+/// - 管理幂等键、外部参考号与状态推进
+/// 典型业务时机：
+/// - 用户消费/预授权/手续费等卡业务触发资产扣减
+/// 依赖关系：
+/// - 依赖 WalletAccount
+/// - 最终记账写入 Ledger，并通过 business_id 关联
+/// ======================================================
+
+/// 物理卡/数字卡
+model Card {
+  /// Unique identifier for the card record
+  id            String   @id @default(cuid())
+  /// Distinguishes between physical (ENTITY) and digital (VIRTUAL) cards
+  type          CardType
+  /// Current lifecycle and operational state of the card
+  status        CardStatus
+
+  // --- Personal Information ---
+  /// Cardholder's legal first name
+  first_name    String
+  /// Cardholder's legal last name
+  last_name     String
+  /// Contact phone number
+  phone         String
+  /// International dialing code (e.g., +1, +86)
+  phone_code    String
+  /// Contact email address associated with the card
+  email         String
+  /// Date of birth for identity verification
+  dob           DateTime
+
+  // --- Financial Configuration ---
+  /// Transaction or maintenance fee applied to the card
+  consume_fee   Decimal
+
+  // --- Relations ---
+  /// Legal residence information of the cardholder
+  resident_address  ResidentAddress?
+  /// Physical shipping location for ENTITY cards
+  delivery_address  DeliveryAddress?
+}
+
+// 物理卡持卡人地址
+model ResidentAddress {
+  id      String @id @default(cuid())
+  
+  // --- Relations ---
+  /// Foreign key linking back to the parent Card
+  card_id String @unique
+  card    Card   @relation(fields: [card_id], references: [id], onDelete: Cascade)
+
+  // --- Geographic Details ---
+  /// Country of residence
+  country String
+  /// Administrative region or province
+  region  String
+  /// City name
+  city    String
+  /// State or territory code
+  state   String
+  /// Postal or Zip code
+  zip     String
+  /// Detailed street address (e.g., House No, Building)
+  detail  String
+}
+
+// 物理卡配送地址
+model DeliveryAddress {
+  id      String @id @default(cuid())
+
+  // --- Relations ---
+  /// Foreign key linking back to the parent Card
+  card_id String @unique
+  card    Card   @relation(fields: [card_id], references: [id], onDelete: Cascade)
+
+  // --- Geographic Details ---
+  /// Country where the card should be delivered
+  country String
+  /// Administrative region or province
+  region  String
+  /// City name
+  city    String
+  /// State or territory code
+  state   String
+  /// Postal or Zip code
+  zip     String
+  /// Detailed shipping instructions or street address
+  detail  String
+}
+
+enum CardType {
+  /// Physical plastic/metal card
+  ENTITY
+  /// Digital-only card for online use
+  VIRTUAL
+}
+
+enum CardStatus {
+  /// Initial state, application not yet submitted
+  INITIAL
+  /// Application fee or initial deposit has been paid
+  PAID
+  /// Uncertain: Pending review by the platform or issuer
+  APPLYING
+  /// Uncertain: Issued but awaiting activation by the user
+  INACTIVE
+  /// Fully operational and ready for use
+  ACTIVE
+  /// Temporarily disabled/locked by user or system
+  FREEZE
+}
