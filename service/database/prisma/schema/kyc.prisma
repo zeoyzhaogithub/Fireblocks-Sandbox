@@ -1,43 +1,39 @@
 /// ======================================================
-/// 3. KYC Management
+/// 3. Identity & Compliance（KYC）
 /// 职责：
-/// - KYC 审核状态与三方回执（Kyc）
-/// - 托管充值地址映射（CustodyWalletDepositAddress）
+/// - 存储 Sumsub 等供应商侧 applicant 与审核状态快照
 /// 典型业务时机：
-/// - 提交/回调 KYC、生成或查询入金地址
+/// - 发起 KYC、Webhook 回调更新、人工复核结果落库
 /// 依赖关系：
-/// - 强依赖 User（user_id 外键）
-/// - 下游被充值入账流程引用
+/// - 可选关联 User（user_id 唯一，可空表示尚未绑定内网用户）
 /// ======================================================
 
 model Kyc {
   id               Int       @id @default(autoincrement())
-  user_id          String?
-  external_user_id String // Sumsub external user ID, now Use user ID
-  applicant_id     String // Sumsub applicant ID
+  user_id          String?   @unique
+  /// Sumsub external system user reference
+  external_user_id String
+  /// Sumsub internal applicant reference
+  applicant_id     String
   status           KycStatus @default(INITIAL)
 
-  level_name      String?
-  review_status   String?
-  review_result   String?
-  sandbox_mode    Boolean?
-  event_update_at DateTime? @db.Timestamptz(3)
+  // --- Sumsub Response Metadata ---
+  level_name       String?
+  review_status    String?
+  review_result    String?
+  sandbox_mode     Boolean?
+  event_update_at  DateTime? @db.Timestamptz(3)
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  user User? @relation("user_kyc", fields: [user_id], references: [id])
-
-  @@unique([user_id])
-  @@index([external_user_id])
-  @@index([applicant_id])
-  @@map("kyc")
+  user             User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 enum KycStatus {
-  INITIAL // Initial state
-  PENDING // Under review
-  REJECTED // Rejected (RED with FINAL)
-  COMPLETED // Successfully verified (GREEN)
-  RETRY // Can RETRY
+  INITIAL   // Created but not submitted
+  PENDING   // Documentation submitted, awaiting review
+  REJECTED  // Verification failed
+  COMPLETED // Verification successful
+  RETRY     // Resubmission required
 }

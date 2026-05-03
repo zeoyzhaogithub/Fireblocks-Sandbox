@@ -1,79 +1,44 @@
 /// ======================================================
-/// 4. Asset Account Management
+/// 5. Assets（资产与金库地址）
 /// 职责：
-/// - 用户托管账户（UserCustodyVault）
-/// - 托管充值地址（CustodyWalletDepositAddress）
+/// - VaultAsset：用户在 Fireblocks 侧按网络/资产的充值地址
+/// - Asset：平台内按 symbol 维度的用户余额账本
 /// 典型业务时机：
-/// - 用户开通 Fireblocks 托管账户
-/// - 为用户按资产/网络生成并查询充值地址
+/// - 开户同步地址、链上充值入账、余额调账
 /// 依赖关系：
 /// - 强依赖 User（user_id 外键）
-/// - 下游被充值入账与资产展示流程使用
 /// ======================================================
 
+model VaultAsset {
+  id               String   @id @default(cuid())
+  /// Fireblocks specific asset ticker
+  asset_id         String
+  /// Blockchain network name
+  network          String
+  /// Deposit/Vault address
+  address          String
 
-enum CustodyVaultStatus {
-  PENDING
-  ACTIVE
-  SUSPENDED
-  ARCHIVED
+  user_id          String
+  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([user_id])
 }
 
+model Asset {
+  id               String   @id @default(cuid())
+  /// Asset symbol (e.g., BTC, USDT)
+  symbol           String
+  user_id          String
+  /// Available balance with high precision
+  balance          Decimal  @db.Decimal(36, 18)
 
-/// 保存 Fireblocks 返回的用户充值地址信息。
-/// 约束为同一托管账户在同一资产+网络下仅保留一条主记录。
-model CustodyWalletDepositAddress {
-  id String @id @default(cuid())
+  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  /// 平台用户 ID（users.id）。
-  user_id String
-  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  /// Fireblocks Vault Account ID（冗余字段，便于快速按 Vault 查询）。
-  vault_account_id String
-  custody_vault    UserCustodyVault @relation(fields: [vault_account_id], references: [vault_account_id], onDelete: Cascade)
-
-  /// Fireblocks 资产 ID（例如 BTC/ETH/USDT_TRX）。
-  fireblocks_asset_id String
-  /// 链标识（可选，例如 ETH/TRX）。
-  blockchain_key      String?
-  /// 链上充值地址。
-  address             String
-  /// 链要求时使用的 memo/tag（可选）。
-  tag                 String?
-  /// 是否为该资产默认主地址。
-  is_primary          Boolean  @default(true)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@unique([vault_account_id, fireblocks_asset_id, blockchain_key])
-  @@index([user_id, fireblocks_asset_id])
-  @@index([vault_account_id])
-  @@index([address])
-  @@map("custody_wallet_deposit_addresses")
-}
-
-
-/// 用户托管账户
-model UserCustodyVault {
-  id String @id @default(cuid())
-  user_id String
-  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  /// Fireblocks Vault Account ID
-  vault_account_id String @unique
-  /// Vault name
-  vault_name       String?
-  /// Vault status
-  status CustodyVaultStatus @default(PENDING)
-  /// Deposit addresses
-  deposit_addresses CustodyWalletDepositAddress[]
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@unique([user_id])
-  @@index([status])
-  @@map("user_custody_vaults")
+  @@unique([user_id, symbol]) // Prevents duplicate asset rows for same user
 }

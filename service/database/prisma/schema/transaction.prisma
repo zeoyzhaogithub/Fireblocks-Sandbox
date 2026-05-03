@@ -1,0 +1,47 @@
+/// ======================================================
+/// 6. Transaction（资金流水）
+/// 职责：
+/// - 记录充值、提现、卡相关等资金类单据及状态
+/// - detail 承载扩展元数据（对手方、托管单号等）
+/// 典型业务时机：
+/// - 托管转账完成、链上确认、失败/冲正
+/// 依赖关系：
+/// - 当前模型无外键；业务侧通过 detail JSON 关联 user / 外部单号
+/// ======================================================
+
+model Transaction {
+  id               String            @id @default(cuid())
+  /// Type of financial movement
+  type             TransactionType
+  /// Current state of the transaction
+  status           TransactionStatus @default(PENDING)
+  /// On-chain transaction hash
+  hash             String?           @unique
+  /// Gross amount of the transaction
+  amount           Decimal           @db.Decimal(36, 18)
+  /// Transaction or network fee
+  fee              Decimal?          @db.Decimal(36, 18)
+
+  /// Flexible storage for extra transaction metadata
+  detail           Json?
+
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  CARD_DEPOSIT
+  CARD_FEE
+}
+
+enum TransactionStatus {
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
+}

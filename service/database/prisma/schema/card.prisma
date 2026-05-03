@@ -1,16 +1,14 @@
 /// ======================================================
-/// 7. Card Management
+/// 7. Card（实体/虚拟卡与邮寄地址）
 /// 职责：
-/// - 记录卡侧业务请求与平台资金扣减映射（CardOperationRecord）
-/// - 管理幂等键、外部参考号与状态推进
+/// - Card：卡产品申请与状态、持卡人信息与费用
+/// - ResidentAddress / DeliveryAddress：居住与配送地址子表
 /// 典型业务时机：
-/// - 用户消费/预授权/手续费等卡业务触发资产扣减
+/// - 申卡、支付开卡费、审核、激活、冻结
 /// 依赖关系：
-/// - 依赖 WalletAccount
-/// - 最终记账写入 Ledger，并通过 business_id 关联
+/// - 地址表通过 card_id 与 Card 一对一
 /// ======================================================
 
-/// 物理卡/数字卡
 model Card {
   /// Unique identifier for the card record
   id            String   @id @default(cuid())
@@ -44,10 +42,9 @@ model Card {
   delivery_address  DeliveryAddress?
 }
 
-// 物理卡持卡人地址
 model ResidentAddress {
   id      String @id @default(cuid())
-  
+
   // --- Relations ---
   /// Foreign key linking back to the parent Card
   card_id String @unique
@@ -68,7 +65,6 @@ model ResidentAddress {
   detail  String
 }
 
-// 物理卡配送地址
 model DeliveryAddress {
   id      String @id @default(cuid())
 
