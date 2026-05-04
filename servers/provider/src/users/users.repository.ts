@@ -17,6 +17,8 @@ export class UsersRepository {
         username,
         password: placeholderPassword,
         status: "ACTIVE",
+        // Fireblocks vault is assigned in wallet onboarding; empty means “not provisioned yet”.
+        vault_account_id: "",
       },
       update: {
         status: "ACTIVE",

@@ -1,5 +1,15 @@
 import { Injectable } from "@nestjs/common";
+import type { Prisma } from "@service/database";
 import { PrismaService } from "../database/prisma.service";
+
+function mapFlowStatusToTransactionStatus(
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED",
+): "PENDING" | "POSTED" | "FAILED" | "REVERSED" {
+  if (status === "COMPLETED") return "POSTED";
+  if (status === "FAILED") return "FAILED";
+  if (status === "CANCELLED") return "REVERSED";
+  return "PENDING";
+}
 
 @Injectable()
 export class TransactionsRepository {
@@ -13,18 +23,8 @@ export class TransactionsRepository {
     return user?.id ?? null;
   }
 
-  async ensureWalletAccountByUserId(userId: string): Promise<string> {
-    const account = await this.prisma.walletAccount.upsert({
-      where: { user_id: userId },
-      create: { user_id: userId },
-      update: {},
-      select: { id: true },
-    });
-    return account.id;
-  }
-
   async createWalletFlowRecord(input: {
-    walletAccountId: string;
+    userId: string;
     flowType: "DEPOSIT" | "WITHDRAWAL";
     status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";
     assetCode: string;
@@ -36,27 +36,32 @@ export class TransactionsRepository {
     txHash?: string;
     failReason?: string;
   }): Promise<void> {
-    await this.prisma.walletFlowRecord.create({
+    const detail: Prisma.InputJsonValue = {
+      userId: input.userId,
+      assetCode: input.assetCode,
+      network: input.network ?? null,
+      address: input.address,
+      custodyTxId: input.custodyTxId ?? null,
+      failReason: input.failReason ?? null,
+      flowStatus: input.status,
+    };
+
+    await this.prisma.transaction.create({
       data: {
-        wallet_account_id: input.walletAccountId,
-        flow_type: input.flowType,
-        status: input.status,
-        asset_code: input.assetCode,
-        network: input.network,
-        address: input.address,
+        type: input.flowType,
+        status: mapFlowStatusToTransactionStatus(input.status),
+        hash: input.txHash ?? undefined,
         amount: input.amount,
-        fee_amount: input.feeAmount,
-        custody_tx_id: input.custodyTxId,
-        tx_hash: input.txHash,
-        fail_reason: input.failReason,
+        fee: input.feeAmount,
+        detail,
       },
       select: { id: true },
     });
   }
 
   async createTransferFlowRecords(input: {
-    sourceWalletAccountId: string;
-    destinationWalletAccountId: string;
+    sourceUserId: string;
+    destinationUserId: string;
     status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";
     assetCode: string;
     amount: string;
@@ -65,52 +70,52 @@ export class TransactionsRepository {
     txHash?: string;
     custodyTxId?: string;
   }): Promise<void> {
+    const mapped = mapFlowStatusToTransactionStatus(input.status);
+
     await this.prisma.$transaction([
-      this.prisma.walletFlowRecord.create({
+      this.prisma.transaction.create({
         data: {
-          wallet_account_id: input.sourceWalletAccountId,
-          flow_type: "WITHDRAWAL",
-          status: input.status,
-          asset_code: input.assetCode,
-          address: input.destinationAddress,
+          type: "WITHDRAWAL",
+          status: mapped,
+          hash: input.txHash ?? undefined,
           amount: input.amount,
-          custody_tx_id: input.custodyTxId,
-          tx_hash: input.txHash,
+          detail: {
+            userId: input.sourceUserId,
+            assetCode: input.assetCode,
+            address: input.destinationAddress,
+            custodyTxId: input.custodyTxId ?? null,
+            counterpartyAddress: input.destinationAddress,
+            flowStatus: input.status,
+          } satisfies Prisma.InputJsonValue,
         },
         select: { id: true },
       }),
-      this.prisma.walletFlowRecord.create({
+      this.prisma.transaction.create({
         data: {
-          wallet_account_id: input.destinationWalletAccountId,
-          flow_type: "DEPOSIT",
-          status: input.status,
-          asset_code: input.assetCode,
-          address: input.sourceAddress,
+          type: "DEPOSIT",
+          status: mapped,
           amount: input.amount,
-          tx_hash: input.txHash,
+          detail: {
+            userId: input.destinationUserId,
+            assetCode: input.assetCode,
+            address: input.sourceAddress,
+            txHash: input.txHash ?? null,
+            flowStatus: input.status,
+          } satisfies Prisma.InputJsonValue,
         },
         select: { id: true },
       }),
     ]);
   }
 
-  /**
-   * 预留：落库单笔交易查询快照（用于审计/排障追踪）。
-   */
   async saveQuerySnapshot(_payload: unknown): Promise<void> {
     // TODO: persist to database when DB layer is ready.
   }
 
-  /**
-   * 预留：落库交易列表查询快照（用于统计/审计）。
-   */
   async saveListSnapshot(_payload: unknown): Promise<void> {
     // TODO: persist to database when DB layer is ready.
   }
 
-  /**
-   * 预留：落库交易创建请求与结果快照（用于审计/重放排障）。
-   */
   async saveCreateSnapshot(_payload: unknown): Promise<void> {
     // TODO: persist to database when DB layer is ready.
   }

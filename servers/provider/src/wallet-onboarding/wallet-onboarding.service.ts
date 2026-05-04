@@ -33,7 +33,7 @@ export class WalletOnboardingService {
   private readonly logger = new Logger(WalletOnboardingService.name);
 
   constructor(
-    // create or update deposit address data in the custody_wallet_deposit_addresses table with user id and fireblocks asset legacy id as the unique identifier
+    // persist per-asset deposit addresses into vault_assets (领导版 schema)
     @Inject(DepositAddressRepository) private readonly depositAddressRepository: DepositAddressRepository,
     // get enabled deposit assets from the deposit_assets table
     @Inject(DepositAssetsService) private readonly depositAssetsService: DepositAssetsService,
@@ -41,7 +41,7 @@ export class WalletOnboardingService {
   ) {}
 
   /**
-   * Ensure user wallets and persist address data in custody_wallet_deposit_addresses
+   * Ensure user wallets and persist address data in vault_assets
    * @param input - The input object containing the user id and email
    * @returns The wallet object
    */
@@ -117,7 +117,7 @@ export class WalletOnboardingService {
           continue;
         }
 
-        // 创建或更新 deposit address data in the custody_wallet_deposit_addresses table with user id, network key and custody asset id
+        // 创建或更新 vault_assets 行（user + network + asset_id）
         await this.depositAddressRepository.upsertByUserAndAsset({
           userId: input.userId,
           assetId: asset.fireblocksAssetLegacyId,

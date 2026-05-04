@@ -77,12 +77,9 @@ export class TransactionsService {
     const destinationUserId = await this.transactionsRepository.findUserIdByVaultAccountId(payload.destinationVaultAccountId);
     if (!sourceUserId || !destinationUserId) {
       throw new BadRequestException(
-        "sourceVaultAccountId 或 destinationVaultAccountId 未关联到本地用户，无法同步写入 WalletFlowRecord",
+        "sourceVaultAccountId 或 destinationVaultAccountId 未关联到本地用户，无法同步写入 Transaction",
       );
     }
-
-    const sourceWalletAccountId = await this.transactionsRepository.ensureWalletAccountByUserId(sourceUserId);
-    const destinationWalletAccountId = await this.transactionsRepository.ensureWalletAccountByUserId(destinationUserId);
 
     const data = await createVaultToVaultTransfer(payload);
 
@@ -98,11 +95,10 @@ export class TransactionsService {
             ? "CANCELLED"
             : "PROCESSING";
 
-    // 写两条钱包流水：转出=WITHDRAWAL，转入=DEPOSIT。
-    // 注意：WalletFlowRecord.custody_tx_id 为全局唯一，同一 txId 仅写在 WITHDRAWAL 记录上。
+    // 两条 Transaction：转出 WITHDRAWAL、转入 DEPOSIT（custodyTxId 仅记在转出侧 detail）
     await this.transactionsRepository.createTransferFlowRecords({
-      sourceWalletAccountId,
-      destinationWalletAccountId,
+      sourceUserId,
+      destinationUserId,
       status: mappedStatus,
       assetCode: payload.assetId,
       amount: payload.amount,
