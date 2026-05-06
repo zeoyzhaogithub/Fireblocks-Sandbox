@@ -10,13 +10,13 @@
     "build": "pnpm prisma:generate",
     "sync": "tsx scripts/sync.ts",
     "dev": "tsdown --watch",
-    "prisma:validate": "lnv prisma:validate",
-    "prisma:generate": "lnv prisma:generate && pnpm sync && tsdown",
-    "prisma:migrate:dev": "lnv prisma:migrate:dev",
-    "prisma:format": "lnv prisma:format",
-    "prisma:studio": "lnv prisma:studio",
-    "prisma:db:push": "lnv prisma:db:push",
-    "prisma:db:pull": "lnv prisma:db:pull"
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate && pnpm sync && tsdown",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:format": "prisma format",
+    "prisma:studio": "prisma studio",
+    "prisma:db:push": "prisma db push",
+    "prisma:db:pull": "prisma db pull"
   },
   "dependencies": {
     "@prisma/adapter-pg": "catalog:sql",
@@ -24,6 +24,7 @@
     "@prisma/client-runtime-utils": "7.8.0"
   },
   "devDependencies": {
+    "dotenv": "^16.4.5",
     "prisma": "catalog:sql",
     "tsdown": "catalog:cli",
     "tsx": "catalog:cli"

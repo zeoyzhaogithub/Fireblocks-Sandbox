@@ -54,6 +54,8 @@ export class TransactionsRepository {
         amount: input.amount,
         fee: input.feeAmount,
         detail,
+        user_id: input.userId,
+        custody_tx_id: input.custodyTxId ?? undefined,
       },
       select: { id: true },
     });
@@ -79,6 +81,8 @@ export class TransactionsRepository {
           status: mapped,
           hash: input.txHash ?? undefined,
           amount: input.amount,
+          user_id: input.sourceUserId,
+          custody_tx_id: input.custodyTxId ?? undefined,
           detail: {
             userId: input.sourceUserId,
             assetCode: input.assetCode,
@@ -95,6 +99,7 @@ export class TransactionsRepository {
           type: "DEPOSIT",
           status: mapped,
           amount: input.amount,
+          user_id: input.destinationUserId,
           detail: {
             userId: input.destinationUserId,
             assetCode: input.assetCode,
