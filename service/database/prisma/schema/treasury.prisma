@@ -1,0 +1,54 @@
+/// ======================================================
+/// 8. Treasury & Fireblocks sync（主账户与接口流水镜像）
+/// 职责：
+/// - SystemTreasury：系统主金库（归集目标）Fireblocks vault_account_id 等全局配置
+/// - FireblocksTransactionSnapshot：Get Transactions 拉取的托管流水落库，便于对账与幂等
+/// 典型业务时机：
+/// - 初始化主金库 ID；定时/分页同步 FB 交易；归集任务完成后回填 custody_tx_id
+/// 依赖关系：
+/// - Snapshot 可按 vault 反查 User；user_id 为解析后的冗余，便于按用户查询
+/// ======================================================
+
+model SystemTreasury {
+  /// 单行配置：应用层使用 upsert id = "default"
+  id                      String   @id @default("default")
+  master_vault_account_id String
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  @@map("system_treasury")
+}
+
+enum FireblocksTxDirection {
+  INBOUND
+  OUTBOUND
+  BETWEEN_VAULTS
+  UNKNOWN
+}
+
+model FireblocksTransactionSnapshot {
+  id               String                  @id @default(cuid())
+  /// Fireblocks 交易 ID（列表/详情接口中的 id，幂等键）
+  custody_tx_id    String                  @unique
+  /// 该笔在 FB 侧关联的 vault（源或主视角由 raw 补充）
+  vault_account_id String
+  /// 解析自用户 vault 的冗余字段，便于业务查询
+  user_id          String?
+  user             User?                   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  /// Fireblocks asset id（如 ETH_TEST3）
+  asset_id         String?
+  amount           Decimal                 @db.Decimal(36, 18)
+  fee              Decimal?                @db.Decimal(36, 18)
+  direction        FireblocksTxDirection   @default(UNKNOWN)
+  /// FB status / subStatus 等字符串快照
+  status           String?
+  sub_status       String?
+  occurred_at      DateTime?
+  raw              Json
+  synced_at        DateTime                @default(now())
+
+  @@index([vault_account_id])
+  @@index([user_id])
+  @@index([occurred_at])
+  @@map("fireblocks_transaction_snapshots")
+}

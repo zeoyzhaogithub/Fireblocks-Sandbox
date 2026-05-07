@@ -1,12 +1,12 @@
 /// ======================================================
-/// 6. Transaction（资金流水）
+/// 6. Transaction（钱包 / 托管侧通用流水）
 /// 职责：
-/// - 记录充值、提现、卡相关等资金类单据及状态
-/// - detail 承载扩展元数据（对手方、托管单号等）
+/// - 记录充值、提现、归集、申卡费等**与钱包或 Fireblocks 托管**相关的记账
+/// - custody_tx_id 对齐 Fireblocks 交易 id，便于与 Snapshot / 接口对账
 /// 典型业务时机：
-/// - 托管转账完成、链上确认、失败/冲正
+/// - 链上/托管入账、归集、申卡费从钱包扣减（可与 card_id 关联）
 /// 依赖关系：
-/// - 当前模型无外键；业务侧通过 detail JSON 关联 user / 外部单号
+/// - 可选关联 User / Card；CardWalletTopUp.wallet_ledger_transaction_id 可指向本表一行
 /// ======================================================
 
 model Transaction {
@@ -25,17 +25,38 @@ model Transaction {
   /// Flexible storage for extra transaction metadata
   detail           Json?
 
+  /// 业务用户（内部记账主体）
+  user_id          String?
+  user             User?             @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  /// 与申卡费、卡侧其它钱包扣款等相关的目标卡（非 caku 消费流水）
+  card_id          String?
+  card             Card?             @relation(fields: [card_id], references: [id], onDelete: SetNull)
+  /// Fireblocks 托管侧交易 id（与 FireblocksTransactionSnapshot.custody_tx_id 对应）
+  custody_tx_id    String?
+
+  /// 被「钱包→卡」充卡单引用为扣币流水时反向唯一（可选 1:1）
+  card_wallet_top_up CardWalletTopUp? @relation("CardWalletTopUpWalletLedger")
+
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
 
   @@index([status])
   @@index([type])
+  @@index([user_id])
+  @@index([card_id])
+  @@index([custody_tx_id])
 }
 
 enum TransactionType {
   DEPOSIT
   WITHDRAWAL
+  /// 用户金库 → 系统主金库（归集）
+  SWEEP_TO_MASTER
+  /// 申请/开通卡片从钱包扣费（内部记账）
+  CARD_APPLICATION_FEE
+  /// 卡充值（与外部发卡对账用，非本系统钱包→卡换汇单）
   CARD_DEPOSIT
+  /// 卡片年费 / 平台侧卡费等（非 caku 消费）
   CARD_FEE
 }
 

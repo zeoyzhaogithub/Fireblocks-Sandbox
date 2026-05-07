@@ -1,21 +1,30 @@
 /// ======================================================
 /// 7. Card（实体/虚拟卡与邮寄地址）
 /// 职责：
-/// - Card：卡产品申请与状态、持卡人信息与费用
+/// - Card：归属用户、卡产品状态、持卡人信息；法币余额为与发卡渠道解耦的「数据镜像」
+/// - CardWalletTopUp：**仅**「钱包扣代币 → 按汇率换法币 → 记入卡余额」；
 /// - ResidentAddress / DeliveryAddress：居住与配送地址子表
 /// 典型业务时机：
-/// - 申卡、支付开卡费、审核、激活、冻结
+/// - 申卡、从钱包扣申卡费、用户发起钱包余额充卡（换汇快照）、激活、冻结
 /// 依赖关系：
-/// - 地址表通过 card_id 与 Card 一对一
+/// - 强依赖 User；充卡单可选关联一条钱包 Transaction 作为扣款凭证（分表设计）
 /// ======================================================
 
 model Card {
   /// Unique identifier for the card record
   id            String   @id @default(cuid())
+  /// 持卡人（用户）
+  user_id       String
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   /// Distinguishes between physical (ENTITY) and digital (VIRTUAL) cards
   type          CardType
   /// Current lifecycle and operational state of the card
   status        CardStatus
+
+  /// 卡侧法币余额记账币种（与外部发卡系统对齐的 ISO 代码，如 USD）
+  fiat_currency String   @default("USD")
+  /// 卡侧法币余额（仅平台记账；实际清算依赖外部发卡接口）
+  fiat_balance  Decimal  @default(0) @db.Decimal(36, 18)
 
   // --- Personal Information ---
   /// Cardholder's legal first name
@@ -40,6 +49,63 @@ model Card {
   resident_address  ResidentAddress?
   /// Physical shipping location for ENTITY cards
   delivery_address  DeliveryAddress?
+  /// 与本卡相关的钱包侧流水（如申卡费、与卡关联的托管扣款等）
+  transactions      Transaction[]
+  /// 从用户钱包余额扣代币并换汇后记入本卡法币余额的充卡记录
+  wallet_top_ups    CardWalletTopUp[]
+
+  @@index([user_id])
+}
+
+/// 钱包 → 卡：代币扣减 + 法币入账 + 汇率快照（与通用 Transaction 分表）
+model CardWalletTopUp {
+  id      String @id @default(cuid())
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  card_id String
+  card    Card   @relation(fields: [card_id], references: [id], onDelete: Cascade)
+
+  /// 扣减的钱包资产符号（与 Asset.symbol / 托管资产对齐）
+  crypto_symbol String
+  /// 从用户钱包账面扣减的代币数量（>0）
+  crypto_amount Decimal @db.Decimal(36, 18)
+
+  fiat_currency String
+  /// 记入卡法币余额的数量（>0）
+  fiat_amount   Decimal @db.Decimal(36, 18)
+
+  /// 成交时汇率快照：每 1 单位 crypto 可兑换的法币数量（= fiat_amount / crypto_amount）
+  fx_rate_fiat_per_crypto Decimal @db.Decimal(36, 18)
+  /// 汇率来源：内部牌价 / 第三方报价 id / 人工等
+  rate_source             String?
+  /// 上游报价单号或批次号（可选）
+  rate_quote_id           String?
+  /// 取得汇率的时间（可与 created_at 不同）
+  quoted_at               DateTime?
+
+  status           CardWalletTopUpStatus @default(PENDING)
+  idempotency_key  String?               @unique
+
+  /// 可选：对应钱包侧一条 Transaction（扣币）；与换汇入卡业务分表，用外键串联
+  wallet_ledger_transaction_id String?    @unique
+  wallet_ledger_transaction    Transaction? @relation("CardWalletTopUpWalletLedger", fields: [wallet_ledger_transaction_id], references: [id], onDelete: SetNull)
+
+  detail Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([card_id])
+  @@index([status])
+  @@map("card_wallet_top_ups")
+}
+
+enum CardWalletTopUpStatus {
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
 }
 
 model ResidentAddress {

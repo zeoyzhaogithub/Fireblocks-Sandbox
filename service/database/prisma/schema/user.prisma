@@ -50,10 +50,20 @@ model User {
   assets           Asset[]
   /// Security authenticators (TOTP, Email, etc.)
   authenticators   Authenticator[]
+  /// 用户名下卡片（与发卡渠道的数据镜像）
+  cards              Card[]
+  /// 钱包 / 托管通用流水（充值、归集、申卡费等）
+  transactions       Transaction[]
+  /// 钱包代币换法币并入卡余额的充卡单（与 Transaction 分表）
+  card_wallet_top_ups CardWalletTopUp[]
+  /// 从 Fireblocks 接口同步的托管交易快照（对账 / 幂等）
+  fb_tx_snapshots    FireblocksTransactionSnapshot[]
 
   // --- Timestamps ---
   created_at       DateTime    @default(now())
   updated_at       DateTime    @updatedAt
+
+  @@map("users")
 }
 
 enum UserStatus {
