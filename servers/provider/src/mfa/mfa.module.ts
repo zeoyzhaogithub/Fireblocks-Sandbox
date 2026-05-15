@@ -1,12 +1,12 @@
-import { Module } from "@nestjs/common";
-import { TelegramOtpController } from "./telegram/telegram.controller";
-import { TelegramOtpService } from "./telegram/telegram.service";
-import { TotpController } from "./totp/totp.controller";
-import { TotpService } from "./totp/totp.service";
+import { Module } from '@nestjs/common'
+import { VerificationModule } from '../verification/verification.module'
+import { MfaController } from './mfa.controller'
+import { MfaService } from './mfa.service'
 
 @Module({
-  controllers: [TotpController, TelegramOtpController],
-  providers: [TotpService, TelegramOtpService],
+  imports: [VerificationModule],
+  controllers: [MfaController],
+  providers: [MfaService],
+  exports: [MfaService],
 })
-
 export class MfaModule {}

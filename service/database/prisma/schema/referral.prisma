@@ -1,0 +1,16 @@
+model Referral {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation("UserReferralCodes", fields: [userId], references: [id])
+
+  rule      Json
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  /// Soft-delete：Retain recommendation rule data to avoid damaging the citation integrity of associated users
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("referral_codes")
+}

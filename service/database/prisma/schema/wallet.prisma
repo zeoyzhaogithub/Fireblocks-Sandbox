@@ -1,0 +1,16 @@
+model Wallet {
+  id               String       @id @default(uuid())
+  userId           String       @unique @map("user_id")
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Unique ID for Fireblocks vault
+  vaultAccountId   String       @map("vault_account_id")
+  /// Assets associated with the Fireblocks vault
+  vaultAssets      VaultAsset[]
+  /// Internal platform assets/balances
+  assets           Asset[]
+
+  @@index([userId])
+  @@index([vaultAccountId])
+  @@map("wallets")
+}
