@@ -6,9 +6,8 @@ import { AppModule } from "../src/app.module";
 import { ProviderClient } from "../src/provider-client/provider.client";
 
 describe("Gateway auth login", () => {
-  // Keep mock mode as the safe default.
-  // Real provider mode requires BOTH flags to avoid accidental flaky failures from local env files.
-  const useRealProvider = process.env.REAL_PROVIDER_E2E === "true"
+  const useRealProvider =
+    process.env.REAL_PROVIDER_E2E === "true"
     && process.env.VITEST_REAL_PROVIDER_E2E === "true";
   const testEmail = process.env.TEST_LOGIN_EMAIL ?? "demo@example1295.com";
   const testTimeoutMs = useRealProvider ? 30000 : 5000;
@@ -70,12 +69,9 @@ describe("Gateway auth login", () => {
   }, testTimeoutMs);
 });
 
-// 
-// mock 
+// Mock：不设下面两项，或只设其一
 // pnpm exec vitest run servers/gateway/test/auth-login.test.ts
 
-// REAL_PROVIDER_E2E=true
-// VITEST_REAL_PROVIDER_E2E=true
-// TEST_LOGIN_EMAIL=demo@example.com 
-// pnpm exec vitest run servers/gateway/test/auth-login.test.ts
+// 真实 Provider E2E（.env 中 REAL_PROVIDER_E2E=true + VITEST_REAL_PROVIDER_E2E=true，并先启动 provider）：
 // pnpm exec dotenv -e .env -- pnpm exec vitest run servers/gateway/test/auth-login.test.ts
+// 可选覆盖邮箱：TEST_LOGIN_EMAIL=demo@example.com pnpm exec dotenv -e .env -- pnpm exec vitest run servers/gateway/test/auth-login.test.ts

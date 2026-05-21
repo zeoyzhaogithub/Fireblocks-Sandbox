@@ -18,8 +18,10 @@ import { VaultsController } from "./vaults/vaults.controller";
 import { VaultsRepository } from "./vaults/vaults.repository";
 import { VaultsService } from "./vaults/vaults.service";
 import { WalletOnboardingService } from "./wallet-onboarding/wallet-onboarding.service";
+import { MfaModule } from "./mfa/mfa.module";
 
 @Module({
+  imports: [MfaModule],
   controllers: [
     HealthController,
     AssetsController,

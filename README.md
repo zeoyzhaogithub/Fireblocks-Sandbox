@@ -78,3 +78,15 @@ servers/gateway/src
    ├─ vaults/
    ├─ transactions/
    └─ deposit-assets/
+
+### Telegram OTP（Bot 备忘）
+
+- **显示名称（Name）**：`lexim verification`
+- **用户名（Username）**：`lexim_otp_bot` 
+
+本地记录（创建后按 BotFather 为准）：
+
+| 字段 | 值 |
+|------|-----|
+| 显示名称 | lexim verification |
+| Username | @lexim_otp_bot |

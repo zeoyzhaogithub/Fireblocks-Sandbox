@@ -1,44 +1,43 @@
-/// ======================================================
-/// 5. Assets（资产与金库地址）
-/// 职责：
-/// - VaultAsset：用户在 Fireblocks 侧按网络/资产的充值地址
-/// - Asset：平台内按 symbol 维度的「可记账」余额（真实资产仍在 FB 金库；扣费/转卡法币通过 Transaction 驱动变更）
-/// 典型业务时机：
-/// - 开户同步地址、确认充值入账、申卡费/转卡法币扣减、与 FB 接口对账后调账
-/// 依赖关系：
-/// - 强依赖 User（user_id 外键）
-/// ======================================================
+// ------------------------------------------------------
+// Assets
+// ------------------------------------------------------
 
 model VaultAsset {
-  id               String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// Fireblocks specific asset ticker
-  asset_id         String
+  assetId    String   @map("asset_id")
   /// Blockchain network name
-  network          String
+  network    String
   /// Deposit/Vault address
-  address          String
+  address    String
 
-  user_id          String
-  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  walletId   String   @map("wallet_id")
+  wallet     Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  @@index([user_id])
+  @@index([walletId])
+  @@index([assetId])
+  @@index([address])
+  @@index([network, assetId])
+  @@map("vault_assets")
 }
 
 model Asset {
-  id               String   @id @default(cuid())
+  id        String   @id @default(cuid())
   /// Asset symbol (e.g., BTC, USDT)
-  symbol           String
-  user_id          String
+  symbol    String
+  walletId  String   @map("wallet_id")
+
   /// Available balance with high precision
-  balance          Decimal  @db.Decimal(36, 18)
+  balance   Decimal  @db.Decimal(36, 18) @default(0)
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-
-  @@unique([user_id, symbol]) // Prevents duplicate asset rows for same user
+  @@unique([walletId, symbol]) // Prevents duplicate asset rows for same user
+  @@index([symbol])
+  @@map("assets")
 }

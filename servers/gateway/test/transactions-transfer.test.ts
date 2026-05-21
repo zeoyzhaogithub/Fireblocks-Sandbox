@@ -6,7 +6,8 @@ import { AppModule } from "../src/app.module";
 import { ProviderClient } from "../src/provider-client/provider.client";
 
 describe("Gateway transactions transfer", () => {
-  const useRealProvider = process.env.REAL_PROVIDER_E2E === "true"
+  const useRealProvider =
+    process.env.REAL_PROVIDER_E2E === "true"
     && process.env.VITEST_REAL_PROVIDER_E2E === "true";
   const testTimeoutMs = useRealProvider ? 30000 : 5000;
   
@@ -104,3 +105,4 @@ describe("Gateway transactions transfer", () => {
 });
 
 // pnpm exec dotenv -e .env -- pnpm exec vitest run servers/gateway/test/transactions-transfer.test.ts
+// 真实 Provider：.env 中 REAL_PROVIDER_E2E + VITEST_REAL_PROVIDER_E2E 均为 true，且 provider 已在 PROVIDER_BASE_URL 运行
