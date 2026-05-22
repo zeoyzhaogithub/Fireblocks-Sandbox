@@ -548,3 +548,7 @@ model SweepTransfer {
 //   @@index([status, created_at])
 //   @@map("sweep_reconciliation")
 // }
+
+
+更新命令：
+pnpm exec dotenv -e .env -- pnpm prisma:migrate:dev

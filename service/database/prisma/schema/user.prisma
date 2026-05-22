@@ -1,13 +1,6 @@
-/// ======================================================
-/// 1. User Management
-/// 职责：
-/// - 用户主档（User）：登录标识、资料、状态、邀请关系
-/// - 与 Fireblocks 金库账户 ID 绑定（vault_account_id）
-/// 典型业务时机：
-/// - 注册、登录资料变更、邀请码绑定、账户启用/暂停
-/// 依赖关系：
-/// - 被 KYC、KYT、Authenticator、VaultAsset、Asset 等通过 user_id 关联
-/// ======================================================
+// ------------------------------------------------------
+// User Management
+// ------------------------------------------------------
 
 model User {
   /// Unique identifier (UUID)
@@ -25,44 +18,46 @@ model User {
   /// Account lifecycle status
   status           UserStatus  @default(ACTIVE)
 
-  // --- Referral System ---
-  /// Unique referral code for the user
-  invite_code      String?     @unique
-  /// ID of the user who invited this user
-  inviter_id       String?
-  /// Self-relation for the inviter
-  inviter          User?       @relation("UserReferrals", fields: [inviter_id], references: [id])
-  /// List of users invited by this user
-  invited_users    User[]      @relation("UserReferrals")
+  /// --- Account referral attributes ---
+  referralCode     String?
+  referralRules    Referral[]  @relation("UserReferralCodes")
+  referredUsers    User[]      @relation("UserReferrals")
 
-  // --- KYC/KYT Relation ---
-  /// One-to-one link to KYC verification data
-  kyc              Kyc?
-  /// One-to-many link to KYT alerts
-  kyt              Kyt[]
+  /// --- Attribution source attribute ---
+  joinedCode       String?     @map("joined_code")
+  inviterId        String?     @map("inviter_id")
+  inviter          User?       @relation("UserReferrals", fields: [inviterId], references: [id])
+
+
+  // --- KYC/MFA Relation ---
+  /// One-to-one：KYC 外键在 `Kyc.user_id`（且 `@unique`）
+  kyc              Kyc?       @relation("UserKYCRecords")
+  /// One-to-many：MFA 审计记录（表 `mfa_audit_logs`）
+  mfa              Mfa[]      @relation("UserMFARecords")
+
+  /// Fireblocks 交易快照（冗余 `user_id`，便于按用户查询）
+  fireblocks_transaction_snapshots FireblocksTransactionSnapshot[]
+
+  /// PIN-based verification for mobile devices
+  pin              String? 
 
   // --- External Integrations ---
-  /// Unique ID for Fireblocks vault
-  vault_account_id String
-  /// Assets associated with the Fireblocks vault
-  vault_assets     VaultAsset[]
-  /// Internal platform assets/balances
-  assets           Asset[]
+  /// One-to-one link to the user's Fireblocks wallet
+  wallet           Wallet?
+
   /// Security authenticators (TOTP, Email, etc.)
   authenticators   Authenticator[]
-  /// 用户名下卡片（与发卡渠道的数据镜像）
-  cards              Card[]
-  /// 钱包 / 托管通用流水（充值、归集、申卡费等）
-  transactions       Transaction[]
-  /// 钱包代币换法币并入卡余额的充卡单（与 Transaction 分表）
-  card_wallet_top_ups CardWalletTopUp[]
-  /// 从 Fireblocks 接口同步的托管交易快照（对账 / 幂等）
-  fb_tx_snapshots    FireblocksTransactionSnapshot[]
 
   // --- Timestamps ---
-  created_at       DateTime    @default(now())
-  updated_at       DateTime    @updatedAt
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
+  @@index([status, joinedCode])
+  @@index([joinedCode, inviterId])
+  @@index([username])
+  @@index([referralCode])
+  @@index([inviterId])
+  @@index([createdAt])
   @@map("users")
 }
 

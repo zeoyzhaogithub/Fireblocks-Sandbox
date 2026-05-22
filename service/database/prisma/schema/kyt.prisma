@@ -1,25 +1,14 @@
-/// ======================================================
-/// 4. KYT Management（链上风险预警）
-/// 职责：
-/// - 存储第三方 KYT 预警与链上交易、风险资产标识
-/// - raw 保留供应商原始 JSON 便于审计
-/// 典型业务时机：
-/// - 入金/出金触发筛查、供应商推送告警
-/// 依赖关系：
-/// - 强依赖 User（user_id 外键）
-/// ======================================================
-
 model Kyt {
   /// Unique identifier for the KYT record
   id               String   @id @default(cuid())
   /// Reference to the internal platform user
-  user_id          String
+  userId           String   @map("user_id")
   /// Unique identifier for the alert from the monitoring provider (e.g., Chainalysis, Elliptic)
-  alert_identifier String
+  alertIdentifier  String   @map("alert_identifier")
   /// Original timestamp when the alert was triggered by the external provider
-  alert_created_at DateTime
+  alertCreatedAt   DateTime @map("alert_created_at")
   /// On-chain transaction hash associated with the risk alert
-  transaction_Hash String
+  transactionHash  String   @map("transaction_hash")
   /// The specific cryptocurrency or asset symbol (e.g., BTC, USDT)
   asset            String
   /// Full raw response payload from the KYT provider for audit purposes
@@ -27,15 +16,14 @@ model Kyt {
 
   // --- Timestamps ---
   /// Record creation timestamp in the local database
-  created_at DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
   /// Record last update timestamp
-  updated_at DateTime @updatedAt
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  // --- Relations ---
-  /// Link to the user who performed the transaction
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@index([transaction_Hash])
+  @@index([userId])
+  @@index([transactionHash])
+  @@index([alertIdentifier])
+  @@index([asset])
+  @@index([createdAt])
   @@map("kyt_alerts")
 }

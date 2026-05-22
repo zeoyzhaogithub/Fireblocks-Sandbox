@@ -27,7 +27,7 @@ model Kyc {
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
 
-  user             User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user             User?     @relation("UserKYCRecords", fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 enum KycStatus {

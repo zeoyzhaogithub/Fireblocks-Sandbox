@@ -1,6 +1,10 @@
 {
   "name": "@service/redis",
-  "main": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
     "@hairy/utils": "catalog:inlined",
     "ioredis": "catalog:utils",
